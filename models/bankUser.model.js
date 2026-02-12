@@ -11,9 +11,6 @@ const BankUserSchema = mongoose.Schema({
 }, { timestamps: true })
 
 
-// BankUserSchema.index({email:1})
-// BankUserSchema.index({accountNumber:1})
-
 const BankUserModel = mongoose.model('bankUser', BankUserSchema);
 
 module.exports = BankUserModel;

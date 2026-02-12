@@ -20,7 +20,7 @@ const createBankUser = async (req, res) => {
 
     }
 
-    catch {
+    catch (err) {
         console.log("Error creating bank user", err);
         res.status(500).send({
             message: "Error creating bank user",

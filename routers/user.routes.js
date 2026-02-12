@@ -12,6 +12,6 @@ const router = express.Router();
 
 
 
-router.post("/newuser", createBankUser)
+router.post("/register", createBankUser)
 
 module.exports = router;
