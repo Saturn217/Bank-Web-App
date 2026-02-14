@@ -33,3 +33,18 @@
 
 // Phase 5:
 // Transaction history
+
+
+
+
+// - auth.controller.js
+// - register
+// -login (later)
+
+// account.controller.js
+// -deposit
+// -withdraw
+// -transfer
+
+// transaction.controller.js
+// -getTransactionHistory

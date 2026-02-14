@@ -9,7 +9,8 @@ const TransactionSchema = mongoose.Schema({
     senderAccount: { type: String, required: true },
     receiverAccount: { type: String, required: true}, 
     status: {type: String, enum: ["success", "failed"], default: "success"}  ,
-    description: { type: String }
+    description: { type: String, required: true },
+    note: {type: String, default: null}
 
 
 }, { timestamps: true });
