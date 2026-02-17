@@ -2,6 +2,8 @@
 const express = require('express');
 const BankUserModel = require('../models/bankUser.model');
 const transactionModel = require('../models/transaction.model');
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 
 const deposit = async (req, res) => {

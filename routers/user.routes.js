@@ -1,5 +1,5 @@
 const express = require('express');
-const { createBankUser } = require('../controllers/bankUser.controller');
+const { createBankUser, login } = require('../controllers/bankUser.controller');
 const router = express.Router();
 
 
@@ -13,5 +13,6 @@ const router = express.Router();
 
 
 router.post("/register", createBankUser)
+router.post("/login", login)
 
 module.exports = router;

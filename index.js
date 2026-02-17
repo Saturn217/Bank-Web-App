@@ -9,7 +9,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 const userRouter = require ('./routers/user.routes') 
 const accountRouter = require('./routers/account.routes')
-app.use('/api/v1', userRouter, accountRouter);
+const transactionRouter = require('./routers/transactionHistory.routes')
+app.use('/api/v1', userRouter, accountRouter, transactionRouter);
 
 
 
