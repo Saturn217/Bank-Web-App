@@ -5,73 +5,96 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
 
-
-const getTransactions  = async (req, res) => {
-
+const getUserTransactions = async (req, res) => {
     try {
-        const { accountNumber } = req.params;
-        const userTransactions = await transactionModel.find({ accountNumber }).sort({ createdAt: -1 });
+        const userId = req.user._id;
+        const userAccountNumber = req.user.accountNumber;
 
-        if (userTransactions.length === 0) {            
-            return res.status(404).send({
-                message: "No transactions found for this account"
-            })
+        if (!userId || !userAccountNumber) {
+            return res.status(401).send({
+                status: 'error',
+                message: 'Authentication information missing'
+            });
         }
+
+       
+        const {
+            type,
+            page = 1,
+            limit = 50,
+            sort = "desc"
+        } = req.query;
+
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const skip = (pageNum - 1) * limitNum;
+        const sortOrder = sort === "asc" ? 1 : -1;
+
+     
+        const query = {
+            $or: [
+                
+                { user: userId },
+                {
+                    type: "transfer",
+                    receiverAccount: userAccountNumber
+                }
+            ]
+        };
+
+      
+        if (type) {
+            if (['deposit', 'withdrawal', 'transfer'].includes(type.toLowerCase())) {
+                query.type = type.toLowerCase();
+            } else {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid type filter. Use: deposit, withdrawal, transfer'
+                });
+            }
+        }
+
+       
+        const transactions = await transactionModel
+            .find(query)
+            .sort({ createdAt: sortOrder })
+            .skip(skip)
+            .limit(limitNum)
+            .lean();  
+
+        console.log("Found count          :", transactions.length);
+
+        if (transactions.length === 0) {
+            return res.status(200).json({
+                status: 'success',
+                message: "No transactions found",
+                count: 0,
+                page: pageNum,
+                limit: limitNum,
+                data: []
+            });
+        }
+
         return res.status(200).send({
+            status: 'success',
             message: "Transactions retrieved successfully",
-            data: userTransactions
-        })
-    }
+            count: transactions.length,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: Math.ceil(await transactionModel.countDocuments(query) / limitNum),
+            data: transactions
+        });
 
-    catch (err) {
-        console.log("Error retrieving transactions", err);
-        return res.status(500).send({
-            message: "Error retrieving transactions",
+    } catch (err) {
+        console.error("Error fetching transactions:", err);
+        return res.status(500).json({
+            status: 'error',
+            message: "Failed to retrieve transactions",
             error: err.message
-        })
-    }       
-}
+        });
+    }
+};
 
 
-
-// const getTransactions = async (req, res) => {
-//     try { 
-//         const accountNumber = req.user.accountNumber;
-//         const { type, page = 1, limit = 50, sort = "desc" } = req.query;
-
-//         const skip = (page - 1) * limit;
-//         const sortOrder = sort === "asc" ? 1 : -1;
-
-//         const query = { accountNumber };
-//         if (type) query.type = type;
-
-//         const transactions = await TransactionModel.find(query)
-//             .sort({ createdAt: sortOrder })
-//             .skip(skip)
-//             .limit(Number(limit))
-          
-
-//         if (transactions.length === 0) {
-//             return res.status(404).json({
-//                 message: "No transactions found"
-//             });
-//         }
-
-//         return res.status(200).json({
-//             message: "Transactions retrieved successfully",
-//             count: transactions.length,
-//             data: transactions
-//         });
-
-//     } catch (err) {
-//         console.log("Error retrieving transactions", err);
-//         return res.status(500).json({
-//             message: "Error retrieving transactions",
-//             error: err.message
-//         });
-//     }
-// }
-
-
-module.exports = {getTransactions}
+module.exports = { getUserTransactions }
 
