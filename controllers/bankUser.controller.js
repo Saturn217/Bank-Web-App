@@ -120,32 +120,60 @@ const login = async (req, res) => {
 
 }
 
-
 const getMe = async (req, res) => {
-
-    console.log(req.user);
-
     try {
-        const user = await BankUserModel.findById(req.user.id).select("-password")
+        const user = await BankUserModel.findById(req.user._id).select(
+            'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles createdAt'
+        );
 
-        res.status(200).send({
-            message: "user retrieved successfully",
-            data: user
-        })
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Normalize today's date to midnight (LOCAL time)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let interestStatus = "not_eligible";
+        let nextInterestPayment = null;
+
+        // Only calculate projection if user has savings
+        if (user.savingsBalance > 0) {
+            interestStatus = "eligible";
+
+            // First day of next month (always future payout date)
+            const nextInterestDate = new Date(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                1
+            );
+
+            nextInterestDate.setHours(0, 0, 0, 0);
+
+            const diffInMs = nextInterestDate - today;
+            const daysUntil = Math.ceil(
+                diffInMs / (1000 * 60 * 60 * 24)
+            );
+
+            nextInterestPayment = {
+                estimatedDate: nextInterestDate.toLocaleDateString('en-CA'), // YYYY-MM-DD
+                daysUntil
+            };
+        }
+
+        return res.status(200).json({
+            message: "User profile retrieved",
+            data: {
+                ...user.toObject(),
+                interestStatus,
+                nextInterestPayment
+            }
+        });
+
+    } catch (err) {
+        console.error("Get /me error:", err);
+        return res.status(500).json({ message: "Server error" });
     }
-    catch (error) {
-
-
-        res.status(401).send({
-            message: "User not found"
-        })
-
-    }
-
-}
-
-
-
-
+};
 module.exports = { createBankUser, login, getMe }
 

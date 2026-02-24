@@ -11,13 +11,12 @@ const getUserTransactions = async (req, res) => {
         const userAccountNumber = req.user.accountNumber;
 
         if (!userId || !userAccountNumber) {
-            return res.status(401).send({
+            return res.status(401).json({
                 status: 'error',
                 message: 'Authentication information missing'
             });
         }
 
-       
         const {
             type,
             page = 1,
@@ -30,11 +29,11 @@ const getUserTransactions = async (req, res) => {
         const skip = (pageNum - 1) * limitNum;
         const sortOrder = sort === "asc" ? 1 : -1;
 
-     
         const query = {
             $or: [
-                
+              
                 { user: userId },
+                // Incoming transfers
                 {
                     type: "transfer",
                     receiverAccount: userAccountNumber
@@ -42,27 +41,33 @@ const getUserTransactions = async (req, res) => {
             ]
         };
 
-      
         if (type) {
-            if (['deposit', 'withdrawal', 'transfer'].includes(type.toLowerCase())) {
-                query.type = type.toLowerCase();
-            } else {
+            const allowedTypes = [
+                'deposit', 'withdrawal', 'transfer',
+                'savings_deposit', 'savings_interest', 'savings_withdrawal'
+            ];
+            const requestedTypes = type.toLowerCase().split(',').map(t => t.trim());
+
+            // Validate requested types
+            if (!requestedTypes.every(t => allowedTypes.includes(t))) {
                 return res.status(400).json({
                     status: 'error',
-                    message: 'Invalid type filter. Use: deposit, withdrawal, transfer'
+                    message: 'Invalid type filter. Allowed: deposit, withdrawal, transfer, savings_deposit, savings_interest, savings_withdrawal'
                 });
             }
+
+            query.type = { $in: requestedTypes };
         }
 
-       
+        
         const transactions = await transactionModel
             .find(query)
             .sort({ createdAt: sortOrder })
             .skip(skip)
             .limit(limitNum)
-            .lean();  
+            .lean();
 
-        console.log("Found count          :", transactions.length);
+        console.log("Found count:", transactions.length);
 
         if (transactions.length === 0) {
             return res.status(200).json({
@@ -75,13 +80,15 @@ const getUserTransactions = async (req, res) => {
             });
         }
 
-        return res.status(200).send({
+        const totalCount = await transactionModel.countDocuments(query);
+
+        return res.status(200).json({
             status: 'success',
             message: "Transactions retrieved successfully",
             count: transactions.length,
             page: pageNum,
             limit: limitNum,
-            totalPages: Math.ceil(await transactionModel.countDocuments(query) / limitNum),
+            totalPages: Math.ceil(totalCount / limitNum),
             data: transactions
         });
 
@@ -94,7 +101,6 @@ const getUserTransactions = async (req, res) => {
         });
     }
 };
-
 
 module.exports = { getUserTransactions }
 
