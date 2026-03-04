@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Bank of Saturn – ₦100,000 Bonus</title>
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f4f7fa;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #0a2540 0%, #1e3a8a 100%);
+      color: white;
+      padding: 48px 40px 36px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .greeting {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0 0 16px;
+      color: #0a2540;
+    }
+
+    .bonus-box {
+      background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+      border: 2px solid #60a5fa;
+      border-radius: 16px;
+      padding: 32px 24px;
+      margin: 32px 0;
+      text-align: center;
+    }
+
+    .bonus-amount {
+      font-size: 48px;
+      font-weight: 800;
+      color: #1d4ed8;
+      margin: 12px 0 8px;
+      line-height: 1;
+    }
+
+    .button {
+      display: inline-block;
+      background-color: #1d4ed8;
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+      padding: 16px 40px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin: 24px 0 16px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);
+    }
+
+    .button:hover {
+      background-color: #1e40af;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(29, 78, 216, 0.35);
+    }
+
+    .footer {
+      background-color: #0a2540;
+      color: #a5b4fc;
+      padding: 32px 40px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .footer a {
+      color: #60a5fa;
+      text-decoration: none;
+      margin: 0 12px;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Bank of Saturn</h1>
+    </div>
+
+    <div class="content">
+      <h2 class="greeting">Welcome to Bank of Saturn, <%= fullName %>!</h2>
+
+      <p>Thank you for choosing us — we're excited to have you on board.</p>
+      <p>At Bank of Saturn, we believe banking should be simple, secure, and rewarding. That's why we've automatically
+        credited your new account with:</p>
+
+      <div class="bonus-box">
+        <p style="font-size: 20px; margin: 0 0 12px; color: #1e40af;">Your Welcome Bonus</p>
+        <div class="bonus-amount">₦100,000</div>
+        <p style="margin: 0; font-size: 18px; color: #1e40af;">Account Creation Bonus</p>
+      </div>
+
+      <p style="text-align: center; font-size: 16px;">
+        Your account (<%= accountNumber %>) is now ready — log in and explore everything we offer:
+      </p>
+
+      <p style="text-align: center;">
+        <a href="<%= dashboardUrl %>" class="button">
+          Go to Your Dashboard →
+        </a>
+      </p>
+
+      <p style="margin: 32px 0 0; font-size: 15px;">
+        Start today:
+      </p>
+      <ul style="margin: 12px 0 32px 20px; padding-left: 0; font-size: 15px;">
+        <li>Check your balance and transaction history</li>
+        <li>Deposit funds and start saving</li>
+        <li>Pay bills and transfer money instantly</li>
+      </ul>
+
+      <p style="font-size: 15px; color: #4b5563;">
+        Questions? Our support team is available 24/7 — just reply to this email or visit our help center.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>© 2026 Bank of Saturn. All rights reserved.</p>
+      <p style="margin: 12px 0 0;">
+        <a href="<%= supportUrl %>">Help Center</a> •
+        <a href="<%= privacyUrl %>">Privacy Policy</a> •
+        <a href="<%= termsUrl %>">Terms of Service</a>
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>

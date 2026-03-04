@@ -1,4 +1,3 @@
-
 const express = require("express")
 const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require('../models/transaction.model');
@@ -9,7 +8,7 @@ const router = express.Router();
 
 
 
-router.post("/bills/pay", protect , payBill   )
+router.post("/pay", protect , payBill)
 
 
-module.exports= router
+module.exports = router

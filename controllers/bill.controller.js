@@ -58,7 +58,7 @@ const payBill = async (req, res) => {
     }
 
     // Get user
-    const user = await BankUser.findById(req.user._id).session(session);
+    const user = await BankUserModel.findById(req.user._id).session(session);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -72,7 +72,7 @@ const payBill = async (req, res) => {
     await user.save({ session });
 
     // Create transaction
-    const [newTx] = await Transaction.create([{
+    const [newTx] = await transactionModel.create([{
       user: user._id,
       accountNumber: user.accountNumber,
       type: "bill_payment",

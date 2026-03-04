@@ -2,11 +2,14 @@ const express = require('express');
 const app = express();
 const ejs = require('ejs');
 const mongoose = require('mongoose');
+const cors = require("cors")
+
 app.set('view engine', 'ejs');
 const dotenv = require('dotenv');
 dotenv.config();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors())
 const userRouter = require('./routers/user.routes')
 const accountRouter = require('./routers/account.routes')
 const transactionRouter = require('./routers/transactionHistory.routes')
@@ -14,7 +17,7 @@ const billRouter = require("./routers/bill.routes")
 app.use('/api/v1', userRouter, accountRouter, transactionRouter);
 const savings = require("./routers/savings.routes")
 app.use('/api/v1/', savings )
-app.use('api/v1/', billRouter)
+app.use('/api/v1/bills', billRouter)
 
 
 
