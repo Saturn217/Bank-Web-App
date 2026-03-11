@@ -1,10 +1,13 @@
-
-
 const mongoose = require('mongoose');
 const BankUserModel = require('../models/bankUser.model');
-const transactionModel = require('../models/transaction.model');
-const bcrypt = require('bcrypt')
+const TransactionModel = require('../models/transaction.model');
 const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt')
+
+
+
+
+
 
 const payBill = async (req, res) => {
   const session = await mongoose.startSession();
@@ -72,7 +75,7 @@ const payBill = async (req, res) => {
     await user.save({ session });
 
     // Create transaction
-    const [newTx] = await transactionModel.create([{
+    const [newTx] = await TransactionModel.create([{
       user: user._id,
       accountNumber: user.accountNumber,
       type: "bill_payment",

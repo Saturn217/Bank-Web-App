@@ -1,7 +1,8 @@
 require('dotenv').config()
 const express = require('express');
 const BankUserModel = require('../models/bankUser.model');
-const transactionModel = require('../models/transaction.model');
+const TransactionModel = require('../models/transaction.model');
+const otpgen = require("otp-generator")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 // const dotenv = require('dotenv')
@@ -9,9 +10,10 @@ const jwt = require('jsonwebtoken')
 
 console.log('EMAIL_USER from env:', process.env.NODE_MAIL);
 console.log('EMAIL_PASS exists:', !!process.env.NODE_PASSWORD);
-console.log('EMAIL_PASS length:', process.env.NODE_PASSWORD ?.length || 0);
+console.log('EMAIL_PASS length:', process.env.NODE_PASSWORD?.length || 0);
 const nodemailer = require('nodemailer')
-const mailSender = require('../middleware/mailer')
+const mailSender = require('../middleware/mailer');
+const OTPModel = require('../models/otp.model');
 
 
 let transporter = nodemailer.createTransport({
@@ -42,6 +44,8 @@ const createBankUser = async (req, res) => {
 
 
         const [newBankUser] = await BankUserModel.create([{ fullName, email, accountNumber, password: hashedPassword }], { session })
+
+
         const renderMail = await mailSender("welcomeMail.ejs", {
             fullName: newBankUser.fullName || newBankUser.fullName.split(' ')[0] || 'User',
             accountNumber: newBankUser.accountNumber,
@@ -55,7 +59,7 @@ const createBankUser = async (req, res) => {
         const token = await jwt.sign({ id: newBankUser._id }, process.env.JWT_SECRET, { expiresIn: "5h" })
 
 
-        await transactionModel.create([{
+        await TransactionModel.create([{
             user: newBankUser._id,
             type: "deposit",
             amount: 100000,
@@ -174,12 +178,14 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
     try {
         const user = await BankUserModel.findById(req.user._id).select(
-            'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles createdAt'
+            'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles transactionPin createdAt'
         );
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+
+        const hasTransactionPin = !!user.transactionPin;
 
         // Normalize today's date to midnight (LOCAL time)
         const today = new Date();
@@ -217,6 +223,7 @@ const getMe = async (req, res) => {
             data: {
                 ...user.toObject(),
                 interestStatus,
+                hasTransactionPin,
                 nextInterestPayment
             }
         });
@@ -244,7 +251,7 @@ const getDashboard = async (req, res) => {
         monthStart.setDate(1);
         monthStart.setHours(0, 0, 0, 0);
 
-        const interestThisMonth = await transactionModel.aggregate([
+        const interestThisMonth = await TransactionModel.aggregate([
             {
                 $match: {
                     user: req.user._id,
@@ -258,7 +265,7 @@ const getDashboard = async (req, res) => {
         const interestThisMonthTotal = interestThisMonth[0]?.total || 0;
 
         // 3. Calculate bills paid this month (dynamic - no hard-coding)
-        const billsThisMonth = await transactionModel.aggregate([
+        const billsThisMonth = await TransactionModel.aggregate([
             {
                 $match: {
                     user: req.user._id,
@@ -273,27 +280,32 @@ const getDashboard = async (req, res) => {
         const billsThisMonthTotal = billsThisMonth[0]?.total || 0;  // defaults to 0 if no bills
 
         // 4. Get 5 most recent transactions
-        const recentTransactions = await transactionModel.find({ user: req.user._id })
+        const recentTransactions = await TransactionModel.find({ user: req.user._id })
             .sort({ createdAt: -1 })
             .limit(5)
-            .select('createdAt type description amount status')
+             .select('createdAt type amount description date status note senderAccount receiverAccount')
             .lean();
 
         // Format for frontend (add color class & nice display)
         const formattedTx = recentTransactions.map(tx => ({
             date: tx.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            type: tx.type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            type: tx.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             description: tx.description,
-            amount: tx.amount,
-            isPositive: tx.amount > 0,
-            formattedAmount: (tx.amount > 0 ? '+' : '') + '₦' + Math.abs(tx.amount).toLocaleString()
+            amount: tx.amount,                    // signed: negative = debit, positive = credit
+            isPositive: tx.amount > 0,            // drives frontend color
+            formattedAmount: (tx.amount > 0 ? '+' : '') + '₦' + Math.abs(tx.amount).toLocaleString(),
+            senderName: tx.senderName || null,    // ← add these if you store them
+            receiverName: tx.receiverName || null,
+             note: tx.note || null,
         }));
+
 
         return res.status(200).json({
             message: "Dashboard data retrieved",
             data: {
                 fullName: user.fullName,
-                totalBalance: user.balance + user.savingsBalance,
+                totalBalance: user.balance,
+                accountNumber: user.accountNumber,
                 savingsBalance: user.savingsBalance,
                 interestThisMonth: interestThisMonthTotal,
                 billsThisMonth: billsThisMonthTotal,  // now dynamic & 0 if none
@@ -307,6 +319,117 @@ const getDashboard = async (req, res) => {
     }
 };
 
+const requestOTP = async (req, res) => {
+    const { email } = req.body
+    try {
+        // save their otp and mail in the db
+        // send them a mail with the otp
 
-module.exports = { createBankUser, login, getMe, getDashboard }
+
+        const isUser = await BankUserModelModel.findOne({ email })
+        if (!isUser) {
+            res.status(401).send({
+                message: "account with this email does not exist, please register",
+
+            })
+            return
+        }
+
+
+
+        const sendOTP = otpgen.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false, digit: true })
+
+        const user = OTPModel.create({
+            email: email,
+            otp: sendOTP
+        })
+        const otpMail = await mailSender("otpMail.ejs", { otp: sendOTP })
+        res.status(200).send({
+            message: "OTP sent to your email",
+
+        })
+
+        const renderMail = await mailSender("otpMail.ejs", { otp: sendOTP }, {
+            email: isUser.email,
+            dashboardUrl: 'https://yourapp.com/dashboard',
+            supportUrl: 'https://yourapp.com/support',
+            privacyUrl: 'https://yourapp.com/privacy',
+            resetUrl: 'https://yourapp.com/reset-password',
+            termsUrl: 'https://yourapp.com/terms'
+        })
+
+
+        let mailOptions = {
+            from: process.env.NODE_MAIL,
+            to: email,   // [email, another2gmail.com, another3gmail.com] if you want to send the email to multiple recipients
+            subject: "OTP for password reset",
+            html: renderMail
+        };
+
+
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
+
+
+    }
+    catch (error) {
+        console.log(error);
+        res.status(400).send({
+            message: "OTP request failed"
+        })
+    }
+
+}
+
+const forgotPassword = async (req, res) => {
+    const { email, otp, newPassword } = req.body
+
+    try {
+        const isUser = await OTPModel.findOne({ email })
+
+        if (!isUser) {
+            res.status(404).send({
+                message: "Invalid OTP"
+            })
+
+            return
+        }
+
+        let isMatch = (otp === isUser.otp)
+        if (!isMatch) {
+            res.status(404).send({
+                message: "Invalid OTP"
+            })
+
+            return
+        }
+
+        const saltround = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(newPassword, saltround)
+        const user = await BankUserModel.findOneAndUpdate({ email }, { password: hashedPassword }, { new: true })
+
+        res.status(200).send({
+            message: "password updated successfully"
+        })
+
+    }
+
+    catch (error) {
+        console.log(error);
+        res.status(400).send({
+            message: "Password reset failed"
+        })
+    }
+}
+
+
+
+module.exports = { createBankUser, login, getMe, getDashboard, requestOTP, forgotPassword }
+
 

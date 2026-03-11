@@ -2,9 +2,22 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const BankUserModel = require('../models/bankUser.model');
-const transactionModel = require('../models/transaction.model');
+const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer');
+const mailSender = require('../middleware/mailer');
+
+
+
+
+let transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.NODE_MAIL,
+        pass: process.env.NODE_PASSWORD
+    }
+});
 
 
 // const deposit = async (req, res) => {
@@ -37,7 +50,7 @@ const jwt = require('jsonwebtoken')
 //         await depositUser.save();
 
 
-//         const newTransaction = await transactionModel.create({
+//         const newTransaction = await TransactionModel.create({
 //             user: depositUser._id,
 //             accountNumber: depositUser.accountNumber,
 //             type: "deposit",
@@ -102,7 +115,7 @@ const deposit = async (req, res) => {
         depositUser.balance += NumericalAmount;
         await depositUser.save();
 
-        const newTransaction = await transactionModel.create({
+        const newTransaction = await TransactionModel.create({
             user: depositUser._id,
             accountNumber: depositUser.accountNumber,
             type: "deposit",
@@ -129,7 +142,7 @@ const deposit = async (req, res) => {
                     // Only show note if it has content
                     ...(newTransaction.note?.trim() && { note: newTransaction.note })
                 },
-                
+
             }
         });
 
@@ -162,7 +175,7 @@ const withdrawal = async (req, res) => {
         }
 
 
-        const withdrawalUser = await BankUserModel.findById(req.user.id ).session(session);
+        const withdrawalUser = await BankUserModel.findById(req.user.id).session(session);
         if (!withdrawalUser) {
             return res.status(404).send({
                 message: "No user found"
@@ -179,7 +192,7 @@ const withdrawal = async (req, res) => {
         await withdrawalUser.save({ session });
 
 
-        // await transactionModel.create({
+        // await TransactionModel.create({
         //     user: withdrawalUser._id,
         //     accountNumber: withdrawalUser.accountNumber,
         //     type: "withdrawal",
@@ -192,11 +205,11 @@ const withdrawal = async (req, res) => {
 
         // })
 
-        const [newTransaction] = await transactionModel.create([{
+        const [newTransaction] = await TransactionModel.create([{
             user: withdrawalUser._id,
             accountNumber: withdrawalUser.accountNumber,
             type: "withdrawal",
-            amount: NumericalAmount,
+            amount: -NumericalAmount,
             balanceAfter: withdrawalUser.balance,
             senderAccount: withdrawalUser.accountNumber,
             receiverAccount: withdrawalUser.accountNumber,
@@ -214,12 +227,12 @@ const withdrawal = async (req, res) => {
             Transaction: {
                 _id: newTransaction._id,
                 type: "withdrawal",
-                amount: NumericalAmount,
+                amount: -NumericalAmount,
                 senderAccount: withdrawalUser.accountNumber,
                 receiverAccount: withdrawalUser.accountNumber,
                 description: newTransaction.description,
                 createdAt: newTransaction.createdAt,
-               ...(newTransaction.note?.trim() && { note: newTransaction.note })
+                ...(newTransaction.note?.trim() && { note: newTransaction.note })
             }
         })
 
@@ -294,7 +307,7 @@ const withdrawal = async (req, res) => {
 //         await receiverUser.save({ session });
 
 
-//         const [outgoingTx] = await transactionModel.create([{
+//         const [outgoingTx] = await TransactionModel.create([{
 //             user: senderUser._id,
 //             accountNumber: senderUser.accountNumber,
 //             type: "transfer",
@@ -308,7 +321,7 @@ const withdrawal = async (req, res) => {
 //         }], { session });
 
 
-//         await transactionModel.create([{
+//         await TransactionModel.create([{
 //             user: receiverUser._id,
 //             accountNumber: receiverUser.accountNumber,
 //             type: "transfer",
@@ -367,7 +380,7 @@ const Transfer = async (req, res) => {
     session.startTransaction();
 
     try {
-        const { receiverAccount, amount, note = "" } = req.body;
+        const { receiverAccount, amount, note = "", transactionPin } = req.body;
         const NumericalAmount = parseFloat(amount);
 
         // console.log("Receiver account received:", receiverAccount);
@@ -407,10 +420,32 @@ const Transfer = async (req, res) => {
         senderUser.balance -= NumericalAmount;
         receiverUser.balance += NumericalAmount;
 
+
+        // // ✅ CORRECT
+        // if (!senderUser.transactionPin) {
+        //     return res.status(400).json({ message: "Please set a transaction PIN first" });
+        // }
+
+        // const isPinValid = await bcrypt.compare(transactionPin, senderUser.transactionPin);
+        // if (!isPinValid) {
+        //     senderUser.failedPinAttempts += 1;
+        //     await senderUser.save({ session });
+
+        //     if (senderUser.failedPinAttempts >= 3) {
+        //         senderUser.pinLockedUntil = new Date(Date.now() + 30 * 60 * 1000);
+        //         await senderUser.save({ session });
+        //         return res.status(403).json({ ... });
+        //     }
+        //     return res.status(400).json({ message: "Incorrect transaction PIN" });
+        // }
+
+
         await senderUser.save({ session });
         await receiverUser.save({ session });
 
-        const [outgoingTx] = await transactionModel.create([{
+        const tranferMail = await mailSender("transferMail", { senderUser, receiverUser, amount: NumericalAmount })
+
+        const [outgoingTx] = await TransactionModel.create([{
             user: senderUser._id,
             accountNumber: senderUser.accountNumber,
             type: "transfer",
@@ -423,7 +458,7 @@ const Transfer = async (req, res) => {
             status: "success"
         }], { session });
 
-        await transactionModel.create([{
+        await TransactionModel.create([{
             user: receiverUser._id,
             accountNumber: receiverUser.accountNumber,
             type: "transfer",
@@ -445,10 +480,13 @@ const Transfer = async (req, res) => {
                     accountNumber: senderUser.accountNumber,
                     newBalance: senderUser.balance,
                     fullName: senderUser.fullName,
+                    amount: NumericalAmount
                 },
                 receiver: {
                     accountNumber: receiverUser.accountNumber,
-                    newBalance: receiverUser.balance
+                    newBalance: receiverUser.balance,
+                    fullName: receiverUser.fullName,
+                    amount: NumericalAmount
                 },
                 amount: NumericalAmount,
                 outgoingDescription: outgoingTx.description,
@@ -457,6 +495,26 @@ const Transfer = async (req, res) => {
                 ...(note?.trim() && { note })
             }
         });
+
+        let mailOptions = {
+            from:`Bank of Saturn <${process.env.NODE_MAIL}>`,
+            to: [senderUser.email, receiverUser.email],   // [email, another2gmail.com, another3gmail.com] if you want to send the email to multiple recipients
+            subject: `Transfer Notification: ₦${NumericalAmount.toLocaleString()}  ${senderUser.fullName} → ${receiverUser.fullName}`,
+            html: transferMail
+        };
+
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
+
+
+
+
 
     } catch (error) {
         if (session.inTransaction()) {
@@ -474,4 +532,75 @@ const Transfer = async (req, res) => {
         session.endSession();
     }
 };
-module.exports = { deposit, withdrawal, Transfer }
+
+
+
+
+const verifyAccountNumber = async (req, res) => {
+    try {
+        const { accountNumber } = req.query;
+
+        if (!accountNumber || accountNumber.length !== 10) { // assuming 10-digit account numbers
+            return res.status(400).json({ message: "Invalid account number format" });
+        }
+
+        const user = await BankUserModel.findOne({ accountNumber }).select('fullName');
+
+        if (!user) {
+            return res.status(200).json({
+                found: false,
+                message: "Account number not found"
+            });
+        }
+
+        res.status(200).json({
+            found: true,
+            fullName: user.fullName
+        });
+
+    } catch (err) {
+        res.status(500).json({ message: "Error verifying account" });
+    }
+};
+
+
+const setTransactionPin = async (req, res) => {
+    try {
+        const { pin, confirmPin } = req.body;
+
+        if (!pin || !confirmPin) {
+            return res.status(400).json({ message: "PIN and confirmation required" });
+        }
+
+        if (pin !== confirmPin) {
+            return res.status(400).json({ message: "PINs do not match" });
+        }
+
+        if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+            return res.status(400).json({ message: "PIN must be 4–6 digits" });
+        }
+
+        const user = await BankUserModel.findById(req.user._id);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const salt = await bcrypt.genSalt(10);
+        user.transactionPin = await bcrypt.hash(pin, salt);
+        user.failedPinAttempts = 0;
+        user.pinLockedUntil = null;
+
+        await user.save();
+
+        return res.status(200).json({
+            message: "Transaction PIN set successfully"
+        });
+
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ message: "Failed to set PIN" });
+    }
+};
+
+
+
+// Route: GET /api/v1/user/verify-account?accountNumber=1234567890 (protected or public?)
+module.exports = { deposit, withdrawal, Transfer, verifyAccountNumber, setTransactionPin }

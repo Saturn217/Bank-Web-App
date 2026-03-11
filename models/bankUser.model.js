@@ -16,6 +16,19 @@ const BankUserSchema = mongoose.Schema({
         min: 0
     },
     password: { type: String, required: true },
+
+    transactionPin: {
+        type: String,
+        default: null
+    },
+    failedPinAttempts: {
+        type: Number,
+        default: 0
+    },
+    pinLockedUntil: {
+        type: Date,
+        default: null
+    },
     roles: { type: String, enum: ["admin", "user"], default: "user" },
 
 }, { timestamps: true })

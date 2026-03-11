@@ -13,6 +13,8 @@ app.use(cors())
 const userRouter = require('./routers/user.routes')
 const accountRouter = require('./routers/account.routes')
 const transactionRouter = require('./routers/transactionHistory.routes')
+const adminRouter = require('./routers/admin.routes')
+app.use('/api/v1/admin', adminRouter)
 const billRouter = require("./routers/bill.routes")
 app.use('/api/v1', userRouter, accountRouter, transactionRouter);
 const savings = require("./routers/savings.routes")

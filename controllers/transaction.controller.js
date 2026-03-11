@@ -1,6 +1,6 @@
 const express = require('express');
 const BankUserModel = require('../models/bankUser.model');
-const transactionModel = require('../models/transaction.model');
+const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
@@ -20,7 +20,7 @@ const getUserTransactions = async (req, res) => {
         const {
             type,
             page = 1,
-            limit = 50,
+            limit = 10,
             sort = "desc"
         } = req.query;
 
@@ -31,7 +31,7 @@ const getUserTransactions = async (req, res) => {
 
         const query = {
             $or: [
-              
+
                 { user: userId },
                 // Incoming transfers
                 {
@@ -44,7 +44,7 @@ const getUserTransactions = async (req, res) => {
         if (type) {
             const allowedTypes = [
                 'deposit', 'withdrawal', 'transfer',
-                'savings_deposit', 'savings_interest', 'savings_withdrawal'
+                'savings_deposit', 'savings_interest', 'savings_withdrawal', `bill_payment`
             ];
             const requestedTypes = type.toLowerCase().split(',').map(t => t.trim());
 
@@ -59,8 +59,8 @@ const getUserTransactions = async (req, res) => {
             query.type = { $in: requestedTypes };
         }
 
-        
-        const transactions = await transactionModel
+
+        const transactions = await TransactionModel
             .find(query)
             .sort({ createdAt: sortOrder })
             .skip(skip)
@@ -80,16 +80,19 @@ const getUserTransactions = async (req, res) => {
             });
         }
 
-        const totalCount = await transactionModel.countDocuments(query);
+        const totalCount = await TransactionModel.countDocuments(query);
 
         return res.status(200).json({
             status: 'success',
             message: "Transactions retrieved successfully",
-            count: transactions.length,
-            page: pageNum,
-            limit: limitNum,
-            totalPages: Math.ceil(totalCount / limitNum),
-            data: transactions
+            data: transactions,
+            meta: {
+                count: transactions.length,
+                page: pageNum,
+                limit: limitNum,
+                totalPages: Math.ceil(totalCount / limitNum),
+            }
+
         });
 
     } catch (err) {

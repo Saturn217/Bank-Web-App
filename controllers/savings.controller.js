@@ -1,6 +1,6 @@
 const express = require('express');
 const BankUserModel = require('../models/bankUser.model');
-const transactionModel = require('../models/transaction.model');
+const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const mongoose = require("mongoose")
@@ -41,7 +41,7 @@ const depositToSavings = async (req, res) => {
         await user.save({ session });
 
 
-        const [newTransaction] = await transactionModel.create([{
+        const [newTransaction] = await TransactionModel.create([{
             user: user._id,
             accountNumber: user.accountNumber,
             type: "savings_deposit",
@@ -94,7 +94,7 @@ const withdrawFromSavings = async (req, res) => {
         const { amount, note = "" } = req.body;
         const withdrawAmount = parseFloat(amount);
 
-      
+
         if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
             return res.status(400).send({ message: "Invalid withdrawal amount" });
         }
@@ -103,24 +103,24 @@ const withdrawFromSavings = async (req, res) => {
             return res.status(400).send({ message: "Minimum savings withdrawal is ₦100" });
         }
 
- 
+
         const user = await BankUserModel.findById(req.user._id).session(session);
         if (!user) {
             return res.status(404).send({ message: "Your account not found" });
         }
 
-     
+
         if (user.savingsBalance < withdrawAmount) {
             return res.status(400).send({ message: "Insufficient savings balance" });
         }
 
-       
+
         user.savingsBalance -= withdrawAmount;
         user.balance += withdrawAmount;
 
         await user.save({ session });
 
-        const [newTransaction] = await transactionModel.create([{
+        const [newTransaction] = await TransactionModel.create([{
             user: user._id,
             accountNumber: user.accountNumber,
             type: "savings_withdrawal",
@@ -165,5 +165,77 @@ const withdrawFromSavings = async (req, res) => {
 };
 
 
-module.exports = {depositToSavings, withdrawFromSavings}
+
+const getSavingsOverview = async (req, res) => {
+    try {
+        const user = await BankUserModel.findById(req.user._id).select(
+            'savingsBalance totalInterestEarned lastMonthlyInterestAt'
+        );
+         const limit = parseInt(req.query.limit) || 10
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Next interest date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const nextInterestDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        nextInterestDate.setHours(0, 0, 0, 0);
+
+        const diffMs = nextInterestDate - today;
+        const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        // Last 5 savings-related transactions
+        const savingsHistory = await TransactionModel.find({
+            user: req.user._id,
+            type: { $in: ['savings_deposit', 'savings_withdrawal', 'savings_interest'] }
+        })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .select('createdAt type description amount status note')
+            .lean();
+
+        // Format history
+        const formattedHistory = savingsHistory.map(tx => ({
+            date: tx.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            type: tx.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            description: tx.description,
+            amount: tx.amount,
+            isPositive: tx.amount > 0,
+            formattedAmount: (tx.amount > 0 ? '+' : '') + '₦' + Math.abs(tx.amount).toLocaleString(),
+            note: tx.note || null
+        }));
+
+        const total = await TransactionModel.countDocuments(savingsHistory)
+
+
+
+        return res.status(200).json({
+            message: "Savings overview retrieved",
+            data: {
+                savingsBalance: user.savingsBalance,
+                totalInterestEarned: user.totalInterestEarned,
+                nextInterestPayment: {
+                    estimatedDate: nextInterestDate.toLocaleDateString('en-CA'), // YYYY-MM-DD
+                    daysUntil
+                },
+                savingsHistory: formattedHistory
+            },
+            meta: {
+                historyCount: formattedHistory.length,
+                totalPages: Math.ceil(total / limit),
+                total: total
+
+            }
+        });
+
+    } catch (err) {
+        console.error("Savings overview error:", err);
+        return res.status(500).json({ message: "Failed to load savings overview" });
+    }
+};
+
+module.exports = { depositToSavings, withdrawFromSavings, getSavingsOverview }
 
