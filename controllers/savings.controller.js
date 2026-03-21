@@ -4,6 +4,7 @@ const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const mongoose = require("mongoose")
+const createNotification = require('../utils/createNotification');
 
 
 
@@ -56,6 +57,15 @@ const depositToSavings = async (req, res) => {
         }], { session });
 
         await session.commitTransaction();
+
+        await createNotification({
+            userId: user._id,
+            type: 'savings_deposit',
+            title: 'Savings Deposit Successful',
+            message: `You have successfully deposited ₦${depositAmount.toLocaleString()} to your savings account.`,
+            amount: depositAmount,
+            transactionId: newTransaction._id
+        });
 
 
         return res.status(200).json({
@@ -135,6 +145,16 @@ const withdrawFromSavings = async (req, res) => {
         }], { session });
 
         await session.commitTransaction();
+
+        await createNotification({
+            userId: user._id,
+            type: 'savings_withdrawal',
+            title: 'Savings Withdrawal Successful',
+            message: `You have successfully withdrawn ₦${withdrawAmount.toLocaleString()} from your savings account.`,
+            amount: -withdrawAmount,
+            transactionId: newTransaction._id
+        });
+
 
         return res.status(200).json({
             message: "Successfully withdrawn from savings",

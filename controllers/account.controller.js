@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer');
 const mailSender = require('../middleware/mailer');
+const createNotification = require('../utils/createNotification');
 
 
 
@@ -128,6 +129,16 @@ const deposit = async (req, res) => {
             status: "success"
         });
 
+        await createNotification({
+            userId: depositUser._id,
+            type: 'deposit',
+            title: 'Deposit Successful',
+            message: `You have successfully deposited ₦${NumericalAmount.toLocaleString()} to your account.`,
+            amount: NumericalAmount,
+            transactionId: newTransaction._id
+        });
+
+
         return res.status(200).json({
             message: "Deposit successful",
             data: {
@@ -219,6 +230,16 @@ const withdrawal = async (req, res) => {
         }], { session });
 
         await session.commitTransaction();
+
+        await createNotification({
+            userId: withdrawalUser._id,
+            type: 'withdrawal',
+            title: 'Withdrawal Successful',
+            message: `You have successfully withdrawn ₦${NumericalAmount.toLocaleString()} from your account.`,
+            amount: NumericalAmount,
+            transactionId: newTransaction._id
+        });
+
 
         return res.status(200).send({
             message: "Withdrawal successful",
@@ -420,30 +441,9 @@ const Transfer = async (req, res) => {
         senderUser.balance -= NumericalAmount;
         receiverUser.balance += NumericalAmount;
 
-
-        // // ✅ CORRECT
-        // if (!senderUser.transactionPin) {
-        //     return res.status(400).json({ message: "Please set a transaction PIN first" });
-        // }
-
-        // const isPinValid = await bcrypt.compare(transactionPin, senderUser.transactionPin);
-        // if (!isPinValid) {
-        //     senderUser.failedPinAttempts += 1;
-        //     await senderUser.save({ session });
-
-        //     if (senderUser.failedPinAttempts >= 3) {
-        //         senderUser.pinLockedUntil = new Date(Date.now() + 30 * 60 * 1000);
-        //         await senderUser.save({ session });
-        //         return res.status(403).json({ ... });
-        //     }
-        //     return res.status(400).json({ message: "Incorrect transaction PIN" });
-        // }
-
-
         await senderUser.save({ session });
         await receiverUser.save({ session });
 
-        const tranferMail = await mailSender("transferMail", { senderUser, receiverUser, amount: NumericalAmount })
 
         const [outgoingTx] = await TransactionModel.create([{
             user: senderUser._id,
@@ -473,6 +473,76 @@ const Transfer = async (req, res) => {
 
         await session.commitTransaction();
 
+        await createNotification({
+            userId: senderUser._id,
+            type: 'transfer_sent',
+            title: 'Transfer Sent',
+            message: `You sent ₦${NumericalAmount.toLocaleString()} to ${receiverUser.fullName} (${receiverAccount})`,
+            amount: -NumericalAmount,
+            transactionId: outgoingTx._id
+        });
+
+        await createNotification({
+            userId: receiverUser._id,
+            type: 'transfer_received',
+            title: 'Transfer Received',
+            message: `You received ₦${NumericalAmount.toLocaleString()} from ${senderUser.fullName} (${senderUser.accountNumber})`,
+            amount: NumericalAmount,
+            transactionId: outgoingTx._id
+        });
+
+
+        const debitHtml = await mailSender("transferDebit.ejs", {
+            fullName: senderUser.fullName,
+            amount: NumericalAmount,
+            receiverName: receiverUser.fullName,
+            receiverAccount: receiverUser.accountNumber,
+            balanceAfter: senderUser.balance,
+            date: new Date().toLocaleString("en-NG", {
+                weekday: "long", year: "numeric", month: "long",
+                day: "numeric", hour: "2-digit", minute: "2-digit"
+            }),
+            note: note?.trim() || null,
+            transactionId: outgoingTx._id
+        });
+
+        // Credit email → receiver
+        const creditHtml = await mailSender("transferCredit.ejs", {
+            fullName: receiverUser.fullName,
+            amount: NumericalAmount,
+            senderName: senderUser.fullName,
+            senderAccount: senderUser.accountNumber,
+            balanceAfter: receiverUser.balance,
+            date: new Date().toLocaleString("en-NG", {
+                weekday: "long", year: "numeric", month: "long",
+                day: "numeric", hour: "2-digit", minute: "2-digit"
+            }),
+            note: note?.trim() || null,
+            transactionId: outgoingTx._id
+        });
+
+        transporter.sendMail({
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
+            to: senderUser.email,
+            subject: `Debit Alert: ₦${NumericalAmount.toLocaleString()} sent to ${receiverUser.fullName}`,
+            html: debitHtml
+        }, (err, info) => {
+            if (err) console.error("Debit email error:", err);
+            else console.log("Debit email sent:", info.response);
+        });
+
+        // Send credit email to receiver
+        transporter.sendMail({
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
+            to: receiverUser.email,
+            subject: `Credit Alert: ₦${NumericalAmount.toLocaleString()} received from ${senderUser.fullName}`,
+            html: creditHtml
+        }, (err, info) => {
+            if (err) console.error("Credit email error:", err);
+            else console.log("Credit email sent:", info.response);
+        });
+
+
         return res.status(200).json({
             message: "Transfer successful",
             data: {
@@ -497,7 +567,7 @@ const Transfer = async (req, res) => {
         });
 
         let mailOptions = {
-            from:`Bank of Saturn <${process.env.NODE_MAIL}>`,
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
             to: [senderUser.email, receiverUser.email],   // [email, another2gmail.com, another3gmail.com] if you want to send the email to multiple recipients
             subject: `Transfer Notification: ₦${NumericalAmount.toLocaleString()}  ${senderUser.fullName} → ${receiverUser.fullName}`,
             html: transferMail

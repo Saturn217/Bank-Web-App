@@ -5,6 +5,7 @@ const TransactionModel = require('../models/transaction.model');
 const otpgen = require("otp-generator")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const createNotification = require('../utils/createNotification');
 // const dotenv = require('dotenv')
 // dotenv.config()
 
@@ -46,15 +47,9 @@ const createBankUser = async (req, res) => {
         const [newBankUser] = await BankUserModel.create([{ fullName, email, accountNumber, password: hashedPassword }], { session })
 
 
-        const renderMail = await mailSender("welcomeMail.ejs", {
-            fullName: newBankUser.fullName || newBankUser.fullName.split(' ')[0] || 'User',
-            accountNumber: newBankUser.accountNumber,
-            dashboardUrl: 'https://yourapp.com/dashboard',                       // ← add this
-            supportUrl: 'https://yourapp.com/support',                           // ← add if used
-            privacyUrl: 'https://yourapp.com/privacy',                           // ← add if used
 
-            termsUrl: 'https://yourapp.com/terms'
-        })
+
+
 
         const token = await jwt.sign({ id: newBankUser._id }, process.env.JWT_SECRET, { expiresIn: "5h" })
 
@@ -74,6 +69,41 @@ const createBankUser = async (req, res) => {
 
         await session.commitTransaction();
 
+        await createNotification({
+            userId: newBankUser._id,
+            type: 'welcome_bonus',
+            title: 'Welcome Bonus',
+            message: 'You have received a welcome bonus of ₦100,000!',
+            amount: 100000
+        });
+
+
+        const renderMail = await mailSender("welcomeMail.ejs", {
+            fullName: newBankUser.fullName || newBankUser.fullName.split(' ')[0] || 'User',
+            accountNumber: newBankUser.accountNumber,
+            dashboardUrl: 'https://yourapp.com/dashboard',                       // ← add this
+            supportUrl: 'https://yourapp.com/support',                           // ← add if used
+            privacyUrl: 'https://yourapp.com/privacy',                           // ← add if used
+
+            termsUrl: 'https://yourapp.com/terms'
+        })
+
+
+        let mailOptions = {
+            from: process.env.NODE_MAIL,
+            to: [email, process.env.NODE_MAIL],
+            subject: 'Welcome to Our Bank!',
+            html: renderMail
+        };
+
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log("Email sent: " + info.response);
+        } catch (mailError) {
+            console.error("Error sending welcome email:", mailError);
+        }
+
+
         res.status(201).send({
             message: "Bank user created successfully",
             data: {
@@ -89,21 +119,6 @@ const createBankUser = async (req, res) => {
         })
 
 
-        let mailOptions = {
-            from: process.env.NODE_MAIL,
-            to: [email, process.env.NODE_MAIL],
-            subject: 'Welcome to Our Bank!',
-            html: renderMail
-        };
-
-
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                console.log(error);
-            } else {
-                console.log('Email sent: ' + info.response);
-            }
-        });
 
     }
 
@@ -280,23 +295,38 @@ const getDashboard = async (req, res) => {
         const billsThisMonthTotal = billsThisMonth[0]?.total || 0;  // defaults to 0 if no bills
 
         // 4. Get 5 most recent transactions
+        // 4. Get 5 most recent transactions
         const recentTransactions = await TransactionModel.find({ user: req.user._id })
             .sort({ createdAt: -1 })
             .limit(5)
-             .select('createdAt type amount description date status note senderAccount receiverAccount')
+            .select('createdAt type amount description status note senderAccount receiverAccount billType billProvider billReference')
             .lean();
 
-        // Format for frontend (add color class & nice display)
+        // Enrich transfers with names via account number lookup
+        const accountNumbers = new Set();
+        recentTransactions.filter(tx => tx.type === "transfer").forEach(tx => {
+            if (tx.senderAccount) accountNumbers.add(tx.senderAccount);
+            if (tx.receiverAccount) accountNumbers.add(tx.receiverAccount);
+        });
+
+        let userMap = {};
+        if (accountNumbers.size > 0) {
+            const users = await BankUserModel
+                .find({ accountNumber: { $in: [...accountNumbers] } })
+                .select("fullName accountNumber").lean();
+            users.forEach(u => { userMap[u.accountNumber] = u.fullName; });
+        }
+
         const formattedTx = recentTransactions.map(tx => ({
             date: tx.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
             type: tx.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             description: tx.description,
-            amount: tx.amount,                    // signed: negative = debit, positive = credit
-            isPositive: tx.amount > 0,            // drives frontend color
+            amount: tx.amount,
+            isPositive: tx.amount > 0,
             formattedAmount: (tx.amount > 0 ? '+' : '') + '₦' + Math.abs(tx.amount).toLocaleString(),
-            senderName: tx.senderName || null,    // ← add these if you store them
-            receiverName: tx.receiverName || null,
-             note: tx.note || null,
+            senderName: userMap[tx.senderAccount] || null,
+            receiverName: userMap[tx.receiverAccount] || null,
+            note: tx.note || null,
         }));
 
 
@@ -326,7 +356,7 @@ const requestOTP = async (req, res) => {
         // send them a mail with the otp
 
 
-        const isUser = await BankUserModelModel.findOne({ email })
+        const isUser = await BankUserModel.findOne({ email })
         if (!isUser) {
             res.status(401).send({
                 message: "account with this email does not exist, please register",
@@ -335,47 +365,47 @@ const requestOTP = async (req, res) => {
             return
         }
 
-
-
         const sendOTP = otpgen.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false, digit: true })
 
         const user = OTPModel.create({
             email: email,
-            otp: sendOTP
-        })
-        const otpMail = await mailSender("otpMail.ejs", { otp: sendOTP })
-        res.status(200).send({
-            message: "OTP sent to your email",
-
+            otp: sendOTP,
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000)
         })
 
-        const renderMail = await mailSender("otpMail.ejs", { otp: sendOTP }, {
+
+
+        const otpMail = await mailSender("otpMail.ejs", {
+            otp: sendOTP,
             email: isUser.email,
+            isUser,
             dashboardUrl: 'https://yourapp.com/dashboard',
             supportUrl: 'https://yourapp.com/support',
             privacyUrl: 'https://yourapp.com/privacy',
             resetUrl: 'https://yourapp.com/reset-password',
             termsUrl: 'https://yourapp.com/terms'
-        })
+        });
 
 
         let mailOptions = {
             from: process.env.NODE_MAIL,
             to: email,   // [email, another2gmail.com, another3gmail.com] if you want to send the email to multiple recipients
-            subject: "OTP for password reset",
-            html: renderMail
+            subject: "Bank of Saturn: OTP for password reset",
+            html: otpMail
         };
 
 
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                console.log(error);
-            } else {
-                console.log('Email sent: ' + info.response);
-            }
-        });
+        try {
+            const info = await transporter.sendMail(mailOptions);
+            console.log("Email sent: " + info.response);
+        } catch (mailError) {
+            console.error("Error sending welcome email:", mailError);
+        }
 
+        res.status(200).send({
+            message: "OTP sent to your email",
 
+        })
 
     }
     catch (error) {
@@ -429,7 +459,52 @@ const forgotPassword = async (req, res) => {
 }
 
 
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
 
-module.exports = { createBankUser, login, getMe, getDashboard, requestOTP, forgotPassword }
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "New password and confirmation do not match" });
+        }
+
+        if (newPassword.length < 8) {
+            return res.status(400).json({ message: "New password must be at least 8 characters" });
+        }
+
+
+        const user = await BankUserModel.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Current password is incorrect" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+
+        //  await BankUserModel.findOneAndUpdate({ email }, { password: hashedPassword }, { new: true })
+
+        await user.save();
+
+        return res.status(200).json({
+            message: "Password changed successfully"
+        });
+
+    } catch (err) {
+        console.error("Change password error:", err);
+        return res.status(500).json({ message: "Password change failed" });
+    }
+};
+
+module.exports = { createBankUser, login, getMe, getDashboard, requestOTP, forgotPassword, changePassword }
 
 

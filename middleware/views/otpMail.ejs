@@ -104,7 +104,7 @@
     <div class="content">
       <h2 class="greeting">Password Reset Request</h2>
 
-      <p>Hello <%= email %>,</p>
+      <p>Hello <%= (typeof isUser !== 'undefined' ? isUser.email : email) %>,</p>
 
       <p>You recently requested to reset your password. Use the OTP code below to complete the process:</p>
 

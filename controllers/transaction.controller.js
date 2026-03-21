@@ -67,8 +67,7 @@ const getUserTransactions = async (req, res) => {
             .limit(limitNum)
             .lean();
 
-        console.log("Found count:", transactions.length);
-
+        // ── Early exit if nothing found ──────────────────────────────────
         if (transactions.length === 0) {
             return res.status(200).json({
                 status: 'success',
@@ -82,19 +81,44 @@ const getUserTransactions = async (req, res) => {
 
         const totalCount = await TransactionModel.countDocuments(query);
 
+        // ── Enrich transfers with sender/receiver names ──────────────────
+        const accountNumbers = new Set();
+        transactions
+            .filter(tx => tx.type === "transfer")
+            .forEach(tx => {
+                if (tx.senderAccount) accountNumbers.add(tx.senderAccount);
+                if (tx.receiverAccount) accountNumbers.add(tx.receiverAccount);
+            });
+
+        let userMap = {};
+        if (accountNumbers.size > 0) {
+            const involvedUsers = await BankUserModel
+                .find({ accountNumber: { $in: [...accountNumbers] } })
+                .select("fullName accountNumber")
+                .lean();
+            involvedUsers.forEach(u => { userMap[u.accountNumber] = u.fullName; });
+        }
+
+        const enriched = transactions.map(tx => {
+            if (tx.type !== "transfer") return tx;
+            return {
+                ...tx,
+                senderName: userMap[tx.senderAccount] || tx.senderName || null,
+                receiverName: userMap[tx.receiverAccount] || tx.receiverName || null,
+            };
+        });
+
         return res.status(200).json({
             status: 'success',
             message: "Transactions retrieved successfully",
-            data: transactions,
+            data: enriched,
             meta: {
-                count: transactions.length,
+                count: totalCount,        // ← was transactions.length (wrong — only current page)
                 page: pageNum,
                 limit: limitNum,
                 totalPages: Math.ceil(totalCount / limitNum),
             }
-
         });
-
     } catch (err) {
         console.error("Error fetching transactions:", err);
         return res.status(500).json({

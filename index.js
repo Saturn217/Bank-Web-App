@@ -14,12 +14,14 @@ const userRouter = require('./routers/user.routes')
 const accountRouter = require('./routers/account.routes')
 const transactionRouter = require('./routers/transactionHistory.routes')
 const adminRouter = require('./routers/admin.routes')
+const notificationRouter = require('./routers/notification.routes')
 app.use('/api/v1/admin', adminRouter)
 const billRouter = require("./routers/bill.routes")
 app.use('/api/v1', userRouter, accountRouter, transactionRouter);
 const savings = require("./routers/savings.routes")
 app.use('/api/v1/', savings )
 app.use('/api/v1/bills', billRouter)
+app.use('/api/v1/notifications', notificationRouter)
 
 
 
@@ -29,6 +31,10 @@ mongoose.connect(process.env.DATABASE_URI)
         console.log('Database connected Successfully');
 
         require('./jobs/savingsInterest');
+
+        app.listen(3000, () => {
+            console.log('Server is running on port 3000');
+        });
 
     })
     .catch(err => {

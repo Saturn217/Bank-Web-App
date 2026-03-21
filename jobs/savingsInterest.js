@@ -7,10 +7,13 @@ const mongoose = require('mongoose');
 const BankUser = require('../models/bankUser.model');
 const Transaction = require('../models/transaction.model');
 
+const createNotification = require('../utils/createNotification');
+
 const INTEREST_PERCENTAGE = parseFloat(process.env.SAVINGS_INTEREST_RATE) || 0.005;
 const TIMEZONE = process.env.SAVINGS_INTEREST_TIMEZONE || 'Africa/Lagos';
 const CRON_SCHEDULE = process.env.SAVINGS_INTEREST_CRON || '0 0 1 * *';
 const ENABLE_INTEREST = process.env.ENABLE_SAVINGS_INTEREST !== 'false';
+
 
 // ────────────────────────────────────────────────
 // Helper: Get start of current month (used to prevent double payment)
@@ -87,6 +90,16 @@ const awardMonthlyInterest = async () => {
                 }], { session });
 
                 await session.commitTransaction();
+
+                await createNotification({
+                    userId: user._id,
+                    type: 'savings_interest',
+                    title: 'Savings Interest Awarded',
+                    message: `You have earned ₦${interest.toLocaleString()} in monthly savings interest.`,
+                    amount: interest,
+                    transactionId: newTx._id
+                });
+
 
                 success++;
                 console.log(`✔ ₦${interest} added to ${user.accountNumber} (new savings: ₦${(originalBalance + interest).toLocaleString()})`);

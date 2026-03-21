@@ -4,6 +4,8 @@ const TransactionModel = require('../models/transaction.model');
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
 
+const createNotification = require('../utils/createNotification');
+
 
 
 
@@ -79,7 +81,7 @@ const payBill = async (req, res) => {
       user: user._id,
       accountNumber: user.accountNumber,
       type: "bill_payment",
-      amount: -paymentAmount,
+      amount: paymentAmount,
       balanceAfter: user.balance,
       savingsBalanceAfter: user.savingsBalance,
       senderAccount: user.accountNumber,
@@ -93,6 +95,15 @@ const payBill = async (req, res) => {
     }], { session });
 
     await session.commitTransaction();
+
+    await createNotification({
+      userId: user._id,
+      type: 'bill_payment', 
+      title: 'Bill Payment Successful',
+      message: `You have successfully paid ₦${paymentAmount.toLocaleString()} for your ${billType} bill.`,
+      amount: paymentAmount,
+      transactionId: newTx._id
+    });
 
     return res.status(200).json({
       message: `${billType.charAt(0).toUpperCase() + billType.slice(1)} payment successful`,
