@@ -3,6 +3,7 @@ const app = express();
 const ejs = require('ejs');
 const mongoose = require('mongoose');
 const cors = require("cors")
+const connectDB = require('./database/connectDB');
 
 app.set('view engine', 'ejs');
 const dotenv = require('dotenv');
@@ -19,28 +20,29 @@ app.use('/api/v1/admin', adminRouter)
 const billRouter = require("./routers/bill.routes")
 app.use('/api/v1', userRouter, accountRouter, transactionRouter);
 const savings = require("./routers/savings.routes")
-app.use('/api/v1/', savings )
+app.use('/api/v1/', savings)
 app.use('/api/v1/bills', billRouter)
 app.use('/api/v1/notifications', notificationRouter)
 
 
 
 
-mongoose.connect(process.env.DATABASE_URI)
-    .then(() => {
-        console.log('Database connected Successfully');
 
-        require('./jobs/savingsInterest');
+// mongoose.connect(process.env.DATABASE_URI)
+//     .then(() => {
+//         console.log('Database connected Successfully');
 
-        app.listen(3000, () => {
-            console.log('Server is running on port 3000');
-        });
+//         require('./jobs/savingsInterest');
 
-    })
-    .catch(err => {
-        console.log("Error connecting to Database", err);
+//         app.listen(3000, () => {
+//             console.log('Server is running on port 3000');
+//         });
 
-    })
+//     })
+//     .catch(err => {
+//         console.log("Error connecting to Database", err);
+
+//     })
 
 //  const cron = require('./jobs/savingsInterest');
 
@@ -63,13 +65,24 @@ mongoose.connect(process.env.DATABASE_URI)
 
 
 
-app.listen(process.env.PORT, (err) => {   // this is the line of code that starts the server and listens for incoming requests on the specified port. The port number is taken from the environment variable PORT, which should be defined in the .env file. The callback function is executed when the server starts successfully or if there is an error starting the server. If there is an error, it will log "error starting server" to the console, otherwise it will log "server started successfully".
-    if (err) {
-        console.log('error starting server');
-    }
-    else {
-        console.log('server started successfully');
 
-    }
 
-})
+if (process.env.NODE_ENV !== 'production') {
+    connectDB().then(() => {
+        app.listen(process.env.PORT, (err) => {   // this is the line of code that starts the server and listens for incoming requests on the specified port. The port number is taken from the environment variable PORT, which should be defined in the .env file. The callback function is executed when the server starts successfully or if there is an error starting the server. If there is an error, it will log "error starting server" to the console, otherwise it will log "server started successfully".
+            if (err) {
+                console.log('error starting server');
+            }
+            else {
+                console.log('server started successfully');
+
+            }
+
+        })
+
+    })
+}
+
+module.exports = app;
+
+
