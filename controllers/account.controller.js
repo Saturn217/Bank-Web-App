@@ -113,6 +113,33 @@ const deposit = async (req, res) => {
             return res.status(404).json({ message: "Your account not found" });
         }
 
+        const DAILY_LIMIT = parseInt(process.env.DAILY_DEPOSIT_LIMIT) || 1000000;
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const todayDeposits = await TransactionModel.aggregate([
+            {
+                $match: {
+                    user: depositUser._id,
+                    type: "deposit",
+                    createdAt: { $gte: todayStart },
+                    status: "success"
+                }
+            },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+
+        const depositedToday = todayDeposits[0]?.total || 0;
+
+        if (depositedToday + NumericalAmount > DAILY_LIMIT) {
+            return res.status(403).json({
+                message: `Daily deposit limit of ₦${DAILY_LIMIT.toLocaleString()} exceeded.`,
+                depositedToday,
+                remaining: DAILY_LIMIT - depositedToday
+            });
+        }
+
         depositUser.balance += NumericalAmount;
         await depositUser.save();
 
@@ -227,6 +254,7 @@ const withdrawal = async (req, res) => {
             })
         }
 
+
         withdrawalUser.balance -= NumericalAmount;
         await withdrawalUser.save({ session });
 
@@ -281,7 +309,7 @@ const withdrawal = async (req, res) => {
             transactionId: newTransaction._id
         });
 
-        
+
         transporter.sendMail({
             from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
             to: withdrawalUser.email,
