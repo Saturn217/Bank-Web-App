@@ -6,6 +6,7 @@ const otpgen = require("otp-generator")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const createNotification = require('../utils/createNotification');
+const connectDB = require("../database/connectDB")
 // const dotenv = require('dotenv')
 // dotenv.config()
 
@@ -147,6 +148,7 @@ const login = async (req, res) => {
     const { email, password } = req.body
 
     try {
+        await connectDB()
         const isUser = await BankUserModel.findOne({ email })
 
         if (!isUser) {
