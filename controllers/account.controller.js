@@ -139,6 +139,34 @@ const deposit = async (req, res) => {
         });
 
 
+        const depositHtml = await mailSender("deposit.ejs", {
+            fullName: depositUser.fullName,
+            amount: NumericalAmount,
+            balanceAfter: depositUser.balance,
+            accountNumber: depositUser.accountNumber,
+            date: new Date().toLocaleString("en-NG", {
+                weekday: "long", year: "numeric", month: "long",
+                day: "numeric", hour: "2-digit", minute: "2-digit"
+            }),
+            note: note?.trim() || null,
+            transactionId: newTransaction._id
+        });
+
+
+        transporter.sendMail({
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
+            to: depositUser.email,
+            subject: `Deposit Successful: ₦${NumericalAmount.toLocaleString()} credited to your account`,
+            html: depositHtml
+        }, (err, info) => {
+            if (err) console.error("Deposit email error:", err);
+            else console.log("Deposit email sent:", info.response);
+        });
+
+
+
+
+
         return res.status(200).json({
             message: "Deposit successful",
             data: {
@@ -239,6 +267,31 @@ const withdrawal = async (req, res) => {
             amount: NumericalAmount,
             transactionId: newTransaction._id
         });
+
+        const withdrawHtml = await mailSender("withdrawal.ejs", {
+            fullName: withdrawalUser.fullName,
+            amount: NumericalAmount,
+            balanceAfter: withdrawalUser.balance,
+            accountNumber: withdrawalUser.accountNumber,
+            date: new Date().toLocaleString("en-NG", {
+                weekday: "long", year: "numeric", month: "long",
+                day: "numeric", hour: "2-digit", minute: "2-digit"
+            }),
+            note: note?.trim() || null,
+            transactionId: newTransaction._id
+        });
+
+        
+        transporter.sendMail({
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
+            to: withdrawalUser.email,
+            subject: `Withdrawal Successful: ₦${NumericalAmount.toLocaleString()} withdrawn from your account`,
+            html: withdrawHtml
+        }, (err, info) => {
+            if (err) console.error("Withdrawal email error:", err);
+            else console.log("Withdrawal email sent:", info.response);
+        });
+
 
 
         return res.status(200).send({
@@ -506,7 +559,7 @@ const Transfer = async (req, res) => {
             transactionId: outgoingTx._id
         });
 
-        // Credit email → receiver
+
         const creditHtml = await mailSender("transferCredit.ejs", {
             fullName: receiverUser.fullName,
             amount: NumericalAmount,
@@ -531,7 +584,7 @@ const Transfer = async (req, res) => {
             else console.log("Debit email sent:", info.response);
         });
 
-        // Send credit email to receiver
+
         transporter.sendMail({
             from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
             to: receiverUser.email,

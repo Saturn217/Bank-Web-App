@@ -90,7 +90,7 @@ const createBankUser = async (req, res) => {
 
 
         let mailOptions = {
-            from: process.env.NODE_MAIL,
+             from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
             to: [email, process.env.NODE_MAIL],
             subject: 'Welcome to Our Bank!',
             html: renderMail
