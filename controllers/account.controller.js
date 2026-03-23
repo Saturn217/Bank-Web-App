@@ -115,8 +115,12 @@ const deposit = async (req, res) => {
 
         const DAILY_LIMIT = parseInt(process.env.DAILY_DEPOSIT_LIMIT) || 1000000;
 
+        console.log('DAILY_LIMIT:', DAILY_LIMIT);
+        console.log('depositUser._id:', depositUser._id);
+
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
+        console.log('todayStart:', todayStart);
 
         const todayDeposits = await TransactionModel.aggregate([
             {
@@ -131,6 +135,9 @@ const deposit = async (req, res) => {
         ]);
 
         const depositedToday = todayDeposits[0]?.total || 0;
+        console.log('depositedToday:', depositedToday);
+        console.log('NumericalAmount:', NumericalAmount);
+        console.log('Check:', depositedToday + NumericalAmount > DAILY_LIMIT);
 
         if (depositedToday + NumericalAmount > DAILY_LIMIT) {
             return res.status(403).json({
