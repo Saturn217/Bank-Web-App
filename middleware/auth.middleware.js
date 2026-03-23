@@ -1,15 +1,13 @@
 const jwt = require("jsonwebtoken");
 const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require("../models/transaction.model");
-
-
-
+const connectDB = require("../database/connectDB");
 
 
 
 const protect = async (req, res, next) => {
     try {
-
+        await connectDB()
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).send({
@@ -19,7 +17,6 @@ const protect = async (req, res, next) => {
         }
 
         const token = authHeader.split(' ')[1];
-
 
         let decoded;
         try {
