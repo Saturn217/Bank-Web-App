@@ -23,6 +23,8 @@ const savings = require("./routers/savings.routes")
 app.use('/api/v1/', savings)
 app.use('/api/v1/bills', billRouter)
 app.use('/api/v1/notifications', notificationRouter)
+import { apiLimiter } from './middleware/rateLimiter';
+app.use(apiLimiter)
 
 
 

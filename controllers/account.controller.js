@@ -21,79 +21,7 @@ let transporter = nodemailer.createTransport({
 });
 
 
-// const deposit = async (req, res) => {
 
-//     try {
-
-
-//         const { accountNumber, amount } = req.body;
-//         const NumericalAmount = parseFloat(req.body.amount);
-//         if (isNaN(NumericalAmount) || NumericalAmount <= 0) {
-//             return res.status(400).send({
-//                 message: "Invalid deposit amount"
-//             })
-//         }
-//         if (NumericalAmount < 100) {
-//             return res.status(400).send({
-//                 message: "Minimum deposit amount is 100"
-//             })
-//         }
-//         const depositUser = await BankUserModel.findOne({ accountNumber });
-
-//         if (!depositUser) {
-//             return res.status(404).send({
-//                 message: "No user found"
-//             })
-//         }
-
-//         depositUser.balance += NumericalAmount;
-
-//         await depositUser.save();
-
-
-//         const newTransaction = await TransactionModel.create({
-//             user: depositUser._id,
-//             accountNumber: depositUser.accountNumber,
-//             type: "deposit",
-//             amount: NumericalAmount,
-//             balanceAfter: depositUser.balance,
-//             senderAccount: depositUser.accountNumber,   // or "CASH" / "EXTERNAL"
-//             receiverAccount: depositUser.accountNumber,
-//             description: `Deposit of ${NumericalAmount.toLocaleString()} to account ${depositUser.accountNumber}`,
-//             note: req.body.note || "",
-//             status: "success"
-//         });
-
-
-//         return res.status(200).json({
-//             message: "Deposit successful",
-//             data: {
-//                 newBalance: depositUser.balance,
-//                 transaction: {
-//                     id: newTransaction._id,
-//                     type: newTransaction.type,
-//                     amount: newTransaction.amount,
-//                     balanceAfter: newTransaction.balanceAfter,
-//                     description: newTransaction.description,
-//                     note: newTransaction.note,
-//                     createdAt: newTransaction.createdAt
-//                 },
-//                 //  ...(note?.trim() && { note })
-//             }
-//         });
-
-
-
-//     }
-
-//     catch (err) {
-//         console.log("Error making deposit", err);
-//         return res.status(500).send({
-//             message: "Deposit failed",
-//             error: err.message
-//         })
-//     }
-// }
 
 const deposit = async (req, res) => {
     try {
@@ -106,6 +34,11 @@ const deposit = async (req, res) => {
 
         if (NumericalAmount < 100) {
             return res.status(400).json({ message: "Minimum deposit amount is ₦100" });
+        }
+
+        const SINGLE_TRANSACTION_LIMIT = parseFloat(process.env.SINGLE_TRANSACTION_LIMIT);
+        if (NumericalAmount > SINGLE_TRANSACTION_LIMIT) {
+            return res.status(400).json({ message: `Single transaction limit is ₦${SINGLE_TRANSACTION_LIMIT.toLocaleString()}` });
         }
 
         const depositUser = await BankUserModel.findById(req.user._id);
@@ -131,13 +64,13 @@ const deposit = async (req, res) => {
                     status: "success"
                 }
             },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
+            { $group: { _id: null, totalDeposit: { $sum: "$amount" } } }
         ]);
 
-        const depositedToday = todayDeposits[0]?.total || 0;
-        console.log('depositedToday:', depositedToday);
-        console.log('NumericalAmount:', NumericalAmount);
-        console.log('Check:', depositedToday + NumericalAmount > DAILY_LIMIT);
+        const depositedToday = todayDeposits[0]?.totalDeposit || 0;
+        // console.log('depositedToday:', depositedToday);
+        // console.log('NumericalAmount:', NumericalAmount);
+        // console.log('Check:', depositedToday + NumericalAmount > DAILY_LIMIT);
 
         if (depositedToday + NumericalAmount > DAILY_LIMIT) {
             return res.status(403).json({
@@ -247,12 +180,49 @@ const withdrawal = async (req, res) => {
             });
         }
 
+        const SINGLE_TRANSACTION_LIMIT = parseFloat(process.env.SINGLE_TRANSACTION_LIMIT);
+
+        if (NumericalAmount > SINGLE_TRANSACTION_LIMIT) {
+            return res.status(422).send({
+                message: `Single transaction limit is ₦${SINGLE_TRANSACTION_LIMIT.toLocaleString()}`
+            });
+        }
+
 
         const withdrawalUser = await BankUserModel.findById(req.user.id).session(session);
         if (!withdrawalUser) {
             return res.status(404).send({
                 message: "No user found"
             })
+        }
+
+
+        const todayWithdraw = await TransactionModel.aggregate([
+            {
+                $match: {
+                    user: withdrawalUser._id,
+                    type: "withdrawal",
+                    senderAccount: withdrawalUser.accountNumber,
+                    status: "success",
+                    createdAt: { $gte: startOfDay }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalWithdrawn: { $sum: "$amount" }  
+                }
+            }
+        ]);
+
+        const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;  
+        const remainingLimit = DAILY_WITHDRAWAL_LIMIT - totalWithdrawToday;
+
+        if (totalWithdrawToday + NumericalAmount > DAILY_WITHDRAWAL_LIMIT) {
+            return res.status(403).json({
+                message: `Daily withdrawal limit of ₦${DAILY_WITHDRAWAL_LIMIT.toLocaleString()} exceeded. ` +
+                    `You have ₦${remainingLimit.toLocaleString()} remaining today.`
+            });
         }
 
         if (withdrawalUser.balance < NumericalAmount) {
@@ -266,24 +236,11 @@ const withdrawal = async (req, res) => {
         await withdrawalUser.save({ session });
 
 
-        // await TransactionModel.create({
-        //     user: withdrawalUser._id,
-        //     accountNumber: withdrawalUser.accountNumber,
-        //     type: "withdrawal",
-        //     amount: NumericalAmount,
-        //     balanceAfter: withdrawalUser.balance,
-        //     senderAccount: withdrawalUser.accountNumber,
-        //     receiverAccount: withdrawalUser.accountNumber,
-        //     description: `Withdrawal of ${NumericalAmount} from account ${withdrawalUser.accountNumber}`,
-        //     note: req.body.note || ""
-
-        // })
-
         const [newTransaction] = await TransactionModel.create([{
             user: withdrawalUser._id,
             accountNumber: withdrawalUser.accountNumber,
             type: "withdrawal",
-            amount: -NumericalAmount,
+            amount: NumericalAmount,
             balanceAfter: withdrawalUser.balance,
             senderAccount: withdrawalUser.accountNumber,
             receiverAccount: withdrawalUser.accountNumber,
@@ -362,128 +319,6 @@ const withdrawal = async (req, res) => {
 }
 
 
-// const Transfer = async (req, res) => {
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
-
-//     try {
-
-//         const { receiverAccount, amount} = req.body;
-//         const NumericalAmount = parseFloat(amount);
-
-//         console.log("Receiver account received:", receiverAccount);
-//         console.log("Amount:", NumericalAmount);
-
-
-//         if (isNaN(NumericalAmount) || NumericalAmount <= 0) {
-//             return res.status(422).json({ message: "Invalid transfer amount" });
-//         }
-
-//         if (NumericalAmount < 1000) {
-//             return res.status(422).json({ message: "Minimum transfer amount is 1,000" });
-//         }
-
-//         if (!receiverAccount) {
-//             return res.status(422).json({ message: "Receiver account number is required" });
-//         }
-
-
-//         const senderUser = await BankUserModel.findById(req.user._id).session(session);
-//         if (!senderUser) {
-//             return res.status(404).json({ message: "Your account not found" });
-//         }
-
-
-//         const receiverUser = await BankUserModel.findOne({ accountNumber: receiverAccount }).session(session);
-//         if (!receiverUser) {
-//             return res.status(404).json({ message: "Receiver account not found" });
-//         }
-
-
-//         if (senderUser.accountNumber === receiverAccount) {
-//             return res.status(422).json({ message: "Cannot transfer to your own account" });
-//         }
-
-//         if (senderUser.balance < NumericalAmount) {
-//             return res.status(409).json({ message: "Insufficient balance in your account" });
-//         }
-
-
-//         senderUser.balance -= NumericalAmount;
-//         receiverUser.balance += NumericalAmount;
-
-//         await senderUser.save({ session });
-//         await receiverUser.save({ session });
-
-
-//         const [outgoingTx] = await TransactionModel.create([{
-//             user: senderUser._id,
-//             accountNumber: senderUser.accountNumber,
-//             type: "transfer",
-//             amount: NumericalAmount,
-//             balanceAfter: senderUser.balance,
-//             senderAccount: senderUser.accountNumber,
-//             receiverAccount: receiverUser.accountNumber,
-//             description: `Transfer of ₦${NumericalAmount.toLocaleString()} to ${receiverUser.fullName} (${receiverUser.accountNumber})`,
-//             note: req.body.note || "",
-//             status: "success"
-//         }], { session });
-
-
-//         await TransactionModel.create([{
-//             user: receiverUser._id,
-//             accountNumber: receiverUser.accountNumber,
-//             type: "transfer",
-//             amount: NumericalAmount,
-//             balanceAfter: receiverUser.balance,
-//             senderAccount: senderUser.accountNumber,
-//             receiverAccount: receiverUser.accountNumber,
-//             description: `Received ₦${NumericalAmount.toLocaleString()} from ${senderUser.fullName} (${senderUser.accountNumber})`,
-//             note: req.body.note || "",
-//             status: "success"
-//         }], { session });
-
-//         await session.commitTransaction();
-
-//         return res.status(200).json({
-//             message: "Transfer successful",
-//             data: {
-//                 sender: {
-//                     accountNumber: senderUser.accountNumber,
-//                     newBalance: senderUser.balance,
-//                     fullName: senderUser.fullName,
-
-//                 },
-//                 receiver: {
-//                     accountNumber: receiverUser.accountNumber,
-//                     newBalance: receiverUser.balance
-//                 },
-//                 amount: NumericalAmount,
-//                 outgoingDescription: outgoingTx.description,
-//                 status: "success",
-//                   ...(note?.trim() && { note })
-
-//             }
-//         });
-
-//     } catch (error) {
-//         await session.abortTransaction();
-//         console.error("Transfer error:", error);
-
-//         if (error.name === 'CastError') {
-//             return res.status(400).json({ message: "Invalid account number format" });
-//         }
-
-//         return res.status(500).json({
-//             message: "Transfer failed",
-//             error: error.message || "Internal server error"
-//         });
-//     } finally {
-//         session.endSession();
-//     }
-// };
-
-
 const Transfer = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -492,16 +327,17 @@ const Transfer = async (req, res) => {
         const { receiverAccount, amount, note = "", transactionPin } = req.body;
         const NumericalAmount = parseFloat(amount);
 
-        // console.log("Receiver account received:", receiverAccount);
-        // console.log("Amount:", NumericalAmount);
-        // console.log("Note received:", note);
-
         if (isNaN(NumericalAmount) || NumericalAmount <= 0) {
             throw new Error("Invalid transfer amount");
         }
 
         if (NumericalAmount < 1000) {
-            throw new Error("Minimum transfer amount is 1000");
+            throw new Error("Minimum transfer amount is ₦1,000");
+        }
+
+        const SINGLE_TRANSACTION_LIMIT = parseFloat(process.env.SINGLE_TRANSACTION_LIMIT);
+        if (NumericalAmount > SINGLE_TRANSACTION_LIMIT) {
+            throw new Error(`Single transaction limit is ₦${SINGLE_TRANSACTION_LIMIT.toLocaleString()}`);
         }
 
         if (!receiverAccount) {
@@ -511,6 +347,38 @@ const Transfer = async (req, res) => {
         const senderUser = await BankUserModel.findById(req.user._id).session(session);
         if (!senderUser) {
             throw new Error("Your account not found");
+        }
+
+        const DAILY_TRANSFER_LIMIT = parseFloat(process.env.DAILY_TRANSFER_LIMIT);
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const todayTransfers = await TransactionModel.aggregate([
+            {
+                $match: {
+                    user: senderUser._id,
+                    type: "transfer",
+                    senderAccount: senderUser.accountNumber, // only outgoing
+                    status: "success",
+                    createdAt: { $gte: startOfDay }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalSent: { $sum: "$amount" }
+                }
+            }
+        ]);
+
+        const totalSentToday = todayTransfers[0]?.totalSent || 0;
+        const remainingLimit = DAILY_TRANSFER_LIMIT - totalSentToday;
+
+        if (totalSentToday + NumericalAmount > DAILY_TRANSFER_LIMIT) {
+            throw new Error(
+                `Daily transfer limit of ₦${DAILY_TRANSFER_LIMIT.toLocaleString()} exceeded. ` +
+                `You have ₦${remainingLimit.toLocaleString()} remaining today.`
+            );
         }
 
         const receiverUser = await BankUserModel.findOne({ accountNumber: receiverAccount }).session(session);
