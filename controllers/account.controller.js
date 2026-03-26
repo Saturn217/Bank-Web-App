@@ -197,6 +197,9 @@ const withdrawal = async (req, res) => {
         }
 
 
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
         const todayWithdraw = await TransactionModel.aggregate([
             {
                 $match: {
