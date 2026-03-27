@@ -24,6 +24,7 @@ let transporter = nodemailer.createTransport({
 
 
 const deposit = async (req, res) => {
+    await connectDB()
     try {
         const { amount, note = "" } = req.body;
         const NumericalAmount = parseFloat(amount);
@@ -162,6 +163,7 @@ const deposit = async (req, res) => {
 };
 
 const withdrawal = async (req, res) => {
+    await connectDB()
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -330,6 +332,7 @@ const withdrawal = async (req, res) => {
 
 
 const Transfer = async (req, res) => {
+    await connectDB()
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -573,6 +576,7 @@ const Transfer = async (req, res) => {
 
 
 const verifyAccountNumber = async (req, res) => {
+    await connectDB()
     try {
         const { accountNumber } = req.query;
 
@@ -605,6 +609,7 @@ const verifyAccountNumber = async (req, res) => {
 
 
 const setTransactionPin = async (req, res) => {
+    await connectDB()
     try {
         const { pin, confirmPin } = req.body;
 
