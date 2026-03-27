@@ -207,7 +207,7 @@ const withdrawal = async (req, res) => {
                     type: "withdrawal",
                     senderAccount: withdrawalUser.accountNumber,
                     status: "success",
-                    createdAt: { $gte: startOfDay }
+                    createdAt: { $gte: todayStart }
                 }
             },
             {
