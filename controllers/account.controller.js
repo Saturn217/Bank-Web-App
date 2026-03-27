@@ -293,7 +293,12 @@ const withdrawal = async (req, res) => {
 
         return res.status(200).send({
             message: "Withdrawal successful",
-            data: withdrawalUser,
+            data: {
+                fullName: withdrawalUser.fullName,
+                accountNumber: withdrawalUser.accountNumber,
+                email: withdrawalUser.email,
+                balance: withdrawalUser.balance,
+            },
 
             Transaction: {
                 _id: newTransaction._id,
