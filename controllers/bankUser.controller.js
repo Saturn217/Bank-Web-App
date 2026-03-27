@@ -35,6 +35,7 @@ const createBankUser = async (req, res) => {
     const session = await BankUserModel.startSession();
     session.startTransaction()
     try {
+         await connectDB()
         const { fullName, email, password } = req.body;
         const accountNumber = generateAccountNumber();
 
@@ -194,6 +195,7 @@ const login = async (req, res) => {
 
 const getMe = async (req, res) => {
     try {
+         await connectDB()
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles transactionPin createdAt'
         );
@@ -254,6 +256,7 @@ const getMe = async (req, res) => {
 
 const getDashboard = async (req, res) => {
     try {
+         await connectDB()
         // 1. Get user basics
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName balance savingsBalance totalInterestEarned lastMonthlyInterestAt accountNumber'
@@ -356,7 +359,7 @@ const requestOTP = async (req, res) => {
     try {
         // save their otp and mail in the db
         // send them a mail with the otp
-
+         await connectDB()
 
         const isUser = await BankUserModel.findOne({ email })
         if (!isUser) {
@@ -463,6 +466,7 @@ const forgotPassword = async (req, res) => {
 
 const changePassword = async (req, res) => {
     try {
+         await connectDB()
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
 
