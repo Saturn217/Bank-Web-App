@@ -24,6 +24,7 @@ app.use('/api/v1/', savings)
 app.use('/api/v1/bills', billRouter)
 app.use('/api/v1/notifications', notificationRouter)
 import { apiLimiter } from './middleware/rateLimiter';
+app.set("trust proxy", 1)
 app.use(apiLimiter)
 
 

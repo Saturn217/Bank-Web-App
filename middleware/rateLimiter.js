@@ -9,6 +9,7 @@ export const apiLimiter = rateLimit({
     max: 100,                  // 100 requests per 15 mins
     standardHeaders: true,     // sends limit info in response headers
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         status: 429,
         message: "Too many requests, please try again later"
@@ -21,6 +22,7 @@ export const authLimiter = rateLimit({
     max: 10,                   // only 10 attempts per 15 mins
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         status: 429,
         message: "Too many login attempts, please try again after 15 minutes"
@@ -33,6 +35,7 @@ export const transactionLimiter = rateLimit({
     max: 10,                   // only 10 transactions per 15 mins
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         status: 429,
         message: "Too many transaction attempts, please try again after 15 minutes"
@@ -45,6 +48,7 @@ export const pinLimiter = rateLimit({
     max: 5,                    // only 5 wrong PIN attempts
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
     message: {
         status: 429,
         message: "Too many incorrect PIN attempts, account temporarily blocked for 10 minutes"
