@@ -32,10 +32,11 @@ function generateAccountNumber() {
 
 
 const createBankUser = async (req, res) => {
+       await connectDB()
     const session = await BankUserModel.startSession();
     session.startTransaction()
     try {
-         await connectDB()
+      
         const { fullName, email, password } = req.body;
         const accountNumber = generateAccountNumber();
 
@@ -146,10 +147,12 @@ const createBankUser = async (req, res) => {
 
 
 const login = async (req, res) => {
+     await connectDB()
     const { email, password } = req.body
+   
 
     try {
-        await connectDB()
+        
         const isUser = await BankUserModel.findOne({ email })
 
         if (!isUser) {
@@ -194,8 +197,9 @@ const login = async (req, res) => {
 }
 
 const getMe = async (req, res) => {
+     await connectDB()
     try {
-         await connectDB()
+        
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles transactionPin createdAt'
         );
@@ -255,8 +259,9 @@ const getMe = async (req, res) => {
 
 
 const getDashboard = async (req, res) => {
+     await connectDB()
     try {
-         await connectDB()
+   
         // 1. Get user basics
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName balance savingsBalance totalInterestEarned lastMonthlyInterestAt accountNumber'
@@ -355,11 +360,12 @@ const getDashboard = async (req, res) => {
 };
 
 const requestOTP = async (req, res) => {
+     await connectDB()
     const { email } = req.body
     try {
         // save their otp and mail in the db
         // send them a mail with the otp
-         await connectDB()
+       
 
         const isUser = await BankUserModel.findOne({ email })
         if (!isUser) {
@@ -423,6 +429,7 @@ const requestOTP = async (req, res) => {
 }
 
 const forgotPassword = async (req, res) => {
+     await connectDB()
     const { email, otp, newPassword } = req.body
 
     try {
@@ -465,8 +472,9 @@ const forgotPassword = async (req, res) => {
 
 
 const changePassword = async (req, res) => {
+     await connectDB()
     try {
-         await connectDB()
+        
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
 
