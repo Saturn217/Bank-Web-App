@@ -182,6 +182,7 @@ const withdrawal = async (req, res) => {
 
         const SINGLE_TRANSACTION_LIMIT = parseFloat(process.env.SINGLE_TRANSACTION_LIMIT);
 
+
         if (NumericalAmount > SINGLE_TRANSACTION_LIMIT) {
             return res.status(422).send({
                 message: `Single transaction limit is ₦${SINGLE_TRANSACTION_LIMIT.toLocaleString()}`
@@ -213,17 +214,18 @@ const withdrawal = async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalWithdrawn: { $sum: "$amount" }  
+                    totalWithdrawn: { $sum: "$amount" }
                 }
             }
         ]);
 
-        const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;  
-        const remainingLimit = DAILY_WITHDRAWAL_LIMIT - totalWithdrawToday;
+        const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;
+        const remainingLimit = - totalWithdrawToday;
+        const DAILY_WITHDRAWAL_LIMIT = parseFloat(process.env.DAILY_WITHDRAWAL_LIMIT);
 
-        if (totalWithdrawToday + NumericalAmount > process.env.DAILY_WITHDRAWAL_LIMIT) {
+        if (totalWithdrawToday + NumericalAmount > DAILY_WITHDRAWAL_LIMIT) {
             return res.status(403).json({
-                message: `Daily withdrawal limit of ₦${process.env.DAILY_WITHDRAWAL_LIMIT.toLocaleString()} exceeded. ` +
+                message: `Daily withdrawal limit of ₦${DAILY_WITHDRAWAL_LIMIT.toLocaleString()} exceeded. ` +
                     `You have ₦${remainingLimit.toLocaleString()} remaining today.`
             });
         }
