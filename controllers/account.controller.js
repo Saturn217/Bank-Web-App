@@ -596,7 +596,10 @@ const verifyAccountNumber = async (req, res) => {
 
     } catch (err) {
         console.log(err)
-        res.status(500).json({ message: "Error verifying account" });
+        res.status(500).json({ message: "Error verifying account",
+            error: err.message
+
+         });
     }
 };
 
