@@ -116,7 +116,7 @@ const createBankUser = async (req, res) => {
 
 
             },
-            token
+           
         })
 
 
