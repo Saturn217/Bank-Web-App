@@ -221,9 +221,9 @@ const withdrawal = async (req, res) => {
         const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;  
         const remainingLimit = DAILY_WITHDRAWAL_LIMIT - totalWithdrawToday;
 
-        if (totalWithdrawToday + NumericalAmount > DAILY_WITHDRAWAL_LIMIT) {
+        if (totalWithdrawToday + NumericalAmount > process.env.DAILY_WITHDRAWAL_LIMIT) {
             return res.status(403).json({
-                message: `Daily withdrawal limit of ₦${DAILY_WITHDRAWAL_LIMIT.toLocaleString()} exceeded. ` +
+                message: `Daily withdrawal limit of ₦${process.env.DAILY_WITHDRAWAL_LIMIT.toLocaleString()} exceeded. ` +
                     `You have ₦${remainingLimit.toLocaleString()} remaining today.`
             });
         }
