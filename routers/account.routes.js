@@ -6,16 +6,16 @@ const router = express.Router();
 const { deposit, withdrawal, Transfer, verifyAccountNumber, setTransactionPin } = require('../controllers/account.controller');
 const { protect } = require('../middleware/auth.middleware');
 const validatePin = require('../middleware/validatePin');
-import { apiLimiter, transactionLimiter, pinLimiter, authLimiter } from '../middleware/rateLimiter';
+import { apiLimiter, transactionLimiter, authLimiter } from '../middleware/rateLimiter';
 
 
 
 
 router.post("/deposit", protect, transactionLimiter, deposit)
 
-router.post("/withdraw", protect, validatePin, transactionLimiter, pinLimiter, withdrawal)
+router.post("/withdraw", protect, validatePin, transactionLimiter, withdrawal)
 
-router.post("/transfer", protect, validatePin,transactionLimiter, pinLimiter, Transfer)
+router.post("/transfer", protect, validatePin,transactionLimiter, Transfer)
 router.get("/account-holder/",  verifyAccountNumber )
 router.post('/set-pin', protect, setTransactionPin);
 

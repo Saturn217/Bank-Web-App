@@ -41,16 +41,3 @@ export const transactionLimiter = rateLimit({
         message: "Too many transaction attempts, please try again after 15 minutes"
     }
 });
-
-// PIN attempt limiter — for transaction PIN verification
-export const pinLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 5,                    // only 5 wrong PIN attempts
-    standardHeaders: true,
-    legacyHeaders: false,
-    validate: { xForwardedForHeader: false },
-    message: {
-        status: 429,
-        message: "Too many incorrect PIN attempts, account temporarily blocked for 10 minutes"
-    }
-});
