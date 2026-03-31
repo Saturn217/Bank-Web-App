@@ -222,9 +222,10 @@ const withdrawal = async (req, res) => {
             }
         ]);
 
-        const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;
-        const remainingLimit = - totalWithdrawToday;
         const DAILY_WITHDRAWAL_LIMIT = parseFloat(process.env.DAILY_WITHDRAWAL_LIMIT);
+        const totalWithdrawToday = todayWithdraw[0]?.totalWithdrawn || 0;
+        const remainingLimit = DAILY_WITHDRAWAL_LIMIT - totalWithdrawToday;
+
 
         if (totalWithdrawToday + NumericalAmount > DAILY_WITHDRAWAL_LIMIT) {
             return res.status(403).json({
@@ -601,10 +602,11 @@ const verifyAccountNumber = async (req, res) => {
 
     } catch (err) {
         console.log(err)
-        res.status(500).json({ message: "Error verifying account",
+        res.status(500).json({
+            message: "Error verifying account",
             error: err.message
 
-         });
+        });
     }
 };
 
