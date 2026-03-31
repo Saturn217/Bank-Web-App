@@ -1,6 +1,7 @@
 // 
 const express = require('express');
 const mongoose = require('mongoose');
+const connectDB = require("../database/connectDB")
 const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
