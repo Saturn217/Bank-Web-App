@@ -6,7 +6,7 @@ const router = express.Router();
 const { deposit, withdrawal, Transfer, verifyAccountNumber, setTransactionPin } = require('../controllers/account.controller');
 const { protect } = require('../middleware/auth.middleware');
 const validatePin = require('../middleware/validatePin');
-import { apiLimiter, transactionLimiter, authLimiter } from '../middleware/rateLimiter';
+const { apiLimiter, transactionLimiter, authLimiter } = require('../middleware/rateLimiter');
 
 
 

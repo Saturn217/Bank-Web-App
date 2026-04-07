@@ -1,10 +1,10 @@
 
-import rateLimit from "express-rate-limit";
+const rateLimit = require("express-rate-limit");
 
 
 
 // General limiter — for all routes
-export const apiLimiter = rateLimit({
+const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100,                  // 100 requests per 15 mins
     standardHeaders: true,     // sends limit info in response headers
@@ -17,7 +17,7 @@ export const apiLimiter = rateLimit({
 });
 
 // Auth limiter — for login/register
-export const authLimiter = rateLimit({
+const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10,                   // only 10 attempts per 15 mins
     standardHeaders: true,
@@ -30,7 +30,7 @@ export const authLimiter = rateLimit({
 });
 
 // Transaction limiter — for transfer, deposit, withdrawal
-export const transactionLimiter = rateLimit({
+const transactionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10,                   // only 10 transactions per 15 mins
     standardHeaders: true,
@@ -41,3 +41,5 @@ export const transactionLimiter = rateLimit({
         message: "Too many transaction attempts, please try again after 15 minutes"
     }
 });
+
+module.exports = { apiLimiter, authLimiter, transactionLimiter };

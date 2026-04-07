@@ -1,5 +1,5 @@
-import BankUserModel from "../models/bankUser.model.js";
-import bcrypt from "bcrypt";
+const BankUserModel = require("../models/bankUser.model.js");
+const bcrypt = require("bcrypt");
 const connectDB = require("../database/connectDB")
 
 const MAX_ATTEMPTS = 3;
@@ -78,4 +78,4 @@ const validatePin = async (req, res, next) => {
   }
 };
 
-export default validatePin;
+module.exports = validatePin;
