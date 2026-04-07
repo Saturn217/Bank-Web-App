@@ -9,7 +9,7 @@
     "crons": [
         {
             "path": "/api/v1/admin/trigger-interest?secret=@CRON_SECRET",
-            "schedule": "0 0 1 * *"
+            "schedule": "*/5 * * * *"
         }
     ]
 }
