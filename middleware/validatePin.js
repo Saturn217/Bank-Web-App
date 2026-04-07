@@ -78,4 +78,4 @@ const validatePin = async (req, res, next) => {
   }
 };
 
-module.exports = validatePin;
+module.exports = {validatePin};
