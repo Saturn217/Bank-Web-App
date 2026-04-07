@@ -77,7 +77,7 @@ const awardMonthlyInterest = async () => {
                 );
 
                 // Record transaction
-                await Transaction.create([{
+                const [newTx] = await Transaction.create([{
                     user: user._id,
                     accountNumber: user.accountNumber,
                     type: "savings_interest",
@@ -143,3 +143,5 @@ if (process.env.NODE_ENV === 'development' || process.env.RUN_INTEREST_NOW === '
     console.log('[DEV] Running interest job immediately...');
     awardMonthlyInterest();
 }
+
+module.exports = { awardMonthlyInterest };

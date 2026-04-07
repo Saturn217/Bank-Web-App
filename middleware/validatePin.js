@@ -62,7 +62,7 @@ const validatePin = async (req, res, next) => {
       });
     }
 
-    // ✅ PIN correct — reset everything
+    //  PIN correct — reset everything
     user.failedPinAttempts = 0;
     user.pinLockedUntil = null;
     await user.save();

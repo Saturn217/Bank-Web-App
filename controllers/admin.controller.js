@@ -1,5 +1,6 @@
 const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require('../models/transaction.model');
+const { awardMonthlyInterest } = require('../jobs/savingsInterest');
 
 const getAdminOverview = async (req, res) => {
   try {
@@ -95,4 +96,32 @@ const getAdminOverview = async (req, res) => {
   }
 };
 
-module.exports = { getAdminOverview };
+const triggerInterest = async (req, res) => {
+  try {
+    // Check for cron secret
+    const { secret } = req.query;
+    if (secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Unauthorized'
+      });
+    }
+
+    // Run the interest job
+    await awardMonthlyInterest();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Interest payment job triggered successfully'
+    });
+
+  } catch (err) {
+    console.error('Trigger interest error:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to trigger interest payment'
+    });
+  }
+};
+
+module.exports = { getAdminOverview, triggerInterest };
