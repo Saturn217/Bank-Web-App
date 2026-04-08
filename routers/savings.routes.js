@@ -12,7 +12,7 @@ const router = express.Router();
 router.post("/savings/deposit", protect, depositToSavings)
 router.post("/savings/withdraw", protect,  withdrawFromSavings)
 router.get("/savings/overview", protect, getSavingsOverview)
-router.get("/trigger-interest", protect, triggerInterest  )
+router.get("/trigger-interest",  triggerInterest  )
 
 
 module.exports= router
