@@ -1,7 +1,7 @@
 const express = require('express');
 const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require('../models/transaction.model');
-const { getAdminOverview, triggerInterest } = require('../controllers/admin.controller');
+const { getAdminOverview } = require('../controllers/admin.controller');
 const router = express.Router();
 const adminOnly = require('../middleware/admin.middleware');
 const { protect } = require('../middleware/auth.middleware');

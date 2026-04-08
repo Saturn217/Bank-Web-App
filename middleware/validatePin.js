@@ -6,8 +6,9 @@ const MAX_ATTEMPTS = 3;
 const LOCK_DURATION = 30 * 60 * 1000; 
 
 const validatePin = async (req, res, next) => {
+   await connectDB(); 
   try {
-    await connectDB(); 
+   
 
     const { transactionPin } = req.body;
 
