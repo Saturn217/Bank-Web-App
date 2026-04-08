@@ -8,7 +8,7 @@ const { protect } = require('../middleware/auth.middleware');
 
 
 router.get('/overview', protect, adminOnly , getAdminOverview);
-router.get('/trigger-interest', protect, adminOnly , triggerInterest);
+
 
 
 

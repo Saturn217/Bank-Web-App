@@ -1,8 +1,8 @@
 
 
-require('dotenv').config();
+// require('dotenv').config();
 
-const cron = require('node-cron');
+// const cron = require('node-cron');
 const mongoose = require('mongoose');
 const BankUser = require('../models/bankUser.model');
 const Transaction = require('../models/transaction.model');
@@ -15,9 +15,6 @@ const CRON_SCHEDULE = process.env.SAVINGS_INTEREST_CRON || '0 0 1 * *';
 const ENABLE_INTEREST = process.env.ENABLE_SAVINGS_INTEREST !== 'false';
 
 
-// ────────────────────────────────────────────────
-// Helper: Get start of current month (used to prevent double payment)
-// ────────────────────────────────────────────────
 const getStartOfMonth = () => {
     const date = new Date();
     date.setDate(1);
@@ -53,7 +50,7 @@ const awardMonthlyInterest = async () => {
             try {
                 const originalBalance = user.savingsBalance;
 
-                // Calculate interest (round to nearest whole ₦)
+                
                 const interest = Math.round(originalBalance * INTEREST_PERCENTAGE);
 
                 if (interest <= 0) {
@@ -63,7 +60,7 @@ const awardMonthlyInterest = async () => {
                     continue;
                 }
 
-                // Atomic update: add interest + set last interest date
+                
                 await BankUser.updateOne(
                     { _id: user._id },
                     {
@@ -76,7 +73,6 @@ const awardMonthlyInterest = async () => {
                     { session }
                 );
 
-                // Record transaction
                 const [newTx] = await Transaction.create([{
                     user: user._id,
                     accountNumber: user.accountNumber,
@@ -123,25 +119,25 @@ const awardMonthlyInterest = async () => {
     }
 };
 
-// ────────────────────────────────────────────────
-// Only schedule if enabled in .env
-// ────────────────────────────────────────────────
-if (ENABLE_INTEREST) {
-    cron.schedule(CRON_SCHEDULE, awardMonthlyInterest, {
-        timezone: TIMEZONE
-    });
 
-    console.log(`Monthly savings interest job scheduled (rate: ${(INTEREST_PERCENTAGE * 100).toFixed(2)}%, cron: ${CRON_SCHEDULE}, tz: ${TIMEZONE})`);
-} else {
-    console.log('Monthly savings interest job is DISABLED via .env');
-}
+const triggerInterest = async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
 
-// ────────────────────────────────────────────────
-// DEV ONLY: Run once immediately (controlled by .env or NODE_ENV)
-// ────────────────────────────────────────────────
-if (process.env.NODE_ENV === 'development' || process.env.RUN_INTEREST_NOW === 'true') {
-    console.log('[DEV] Running interest job immediately...');
-    awardMonthlyInterest();
-}
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
 
-module.exports = { awardMonthlyInterest };
+    await awardMonthlyInterest();
+
+    return res.status(200).json({ status: 'success', message: 'Interest job completed' });
+
+  } catch (err) {
+    console.error('Trigger interest error:', err);
+    return res.status(500).json({ status: 'error', message: 'Failed to trigger interest' });
+  }
+};
+
+
+
+module.exports = { awardMonthlyInterest, triggerInterest };

@@ -8,7 +8,7 @@
     ],
     "crons": [
         {
-            "path": "/api/v1/admin/trigger-interest?secret=@CRON_SECRET",
+            "path": "/api/v1/admin/trigger-interest",
             "schedule": "*/5 * * * *"
         }
     ]
