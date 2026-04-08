@@ -264,7 +264,7 @@ const getDashboard = async (req, res) => {
 
 
         const user = await BankUserModel.findById(req.user._id).select(
-            'fullName balance savingsBalance totalInterestEarned lastMonthlyInterestAt accountNumber'
+            'fullName balance savingsBalance totalInterestEarned lastMonthlyInterestAt accountNumber transactionPin'
         );
 
         if (!user) {
@@ -374,6 +374,7 @@ const getDashboard = async (req, res) => {
                 interestThisMonth: interestThisMonthTotal,
                 billsThisMonth: billsThisMonthTotal,
                 recentTransactions: formattedTx,
+                hasTransactionPin: !!user.transactionPin,
                 withdrawnToday,
                 transferredToday,
                 depositedToday,
