@@ -32,11 +32,11 @@ function generateAccountNumber() {
 
 
 const createBankUser = async (req, res) => {
-       await connectDB()
+    await connectDB()
     const session = await BankUserModel.startSession();
     session.startTransaction()
     try {
-      
+
         const { fullName, email, password } = req.body;
         const accountNumber = generateAccountNumber();
 
@@ -93,7 +93,7 @@ const createBankUser = async (req, res) => {
 
 
         let mailOptions = {
-             from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
+            from: `Bank of Saturn <${process.env.NODE_MAIL}>`,
             to: [email, process.env.NODE_MAIL],
             subject: 'Welcome to Our Bank!',
             html: renderMail
@@ -118,7 +118,7 @@ const createBankUser = async (req, res) => {
 
 
             },
-           
+
         })
 
 
@@ -147,12 +147,12 @@ const createBankUser = async (req, res) => {
 
 
 const login = async (req, res) => {
-     await connectDB()
+    await connectDB()
     const { email, password } = req.body
-   
+
 
     try {
-        
+
         const isUser = await BankUserModel.findOne({ email })
 
         if (!isUser) {
@@ -197,9 +197,9 @@ const login = async (req, res) => {
 }
 
 const getMe = async (req, res) => {
-     await connectDB()
+    await connectDB()
     try {
-        
+
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName email accountNumber balance savingsBalance totalInterestEarned lastMonthlyInterestAt roles transactionPin createdAt'
         );
@@ -259,10 +259,10 @@ const getMe = async (req, res) => {
 
 
 const getDashboard = async (req, res) => {
-     await connectDB()
+    await connectDB()
     try {
-   
-        // 1. Get user basics
+
+
         const user = await BankUserModel.findById(req.user._id).select(
             'fullName balance savingsBalance totalInterestEarned lastMonthlyInterestAt accountNumber'
         );
@@ -304,8 +304,7 @@ const getDashboard = async (req, res) => {
 
         const billsThisMonthTotal = billsThisMonth[0]?.total || 0;  // defaults to 0 if no bills
 
-        // 4. Get 5 most recent transactions
-        // 4. Get 5 most recent transactions
+
         const recentTransactions = await TransactionModel.find({ user: req.user._id })
             .sort({ createdAt: -1 })
             .limit(5)
@@ -339,6 +338,31 @@ const getDashboard = async (req, res) => {
             note: tx.note || null,
         }));
 
+        // In your dashboard controller, after fetching today's transactions:
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const DAILY_TRANSFER_LIMIT = parseInt(process.env.DAILY_TRANSFER_LIMIT) || 2_000_000;
+        const DAILY_WITHDRAW_LIMIT = parseInt(process.env.DAILY_WITHDRAW_LIMIT) || 1_000_000;
+        const DAILY_DEPOSIT_LIMIT = parseInt(process.env.DAILY_DEPOSIT_LIMIT) || 1_000_000;
+
+        const todayTxns = await TransactionModel.find({
+            user: req.user._id,
+            createdAt: { $gte: startOfDay }
+        });
+
+        const transferredToday = todayTxns
+            .filter(t => t.type === "transfer")
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const withdrawnToday = todayTxns
+            .filter(t => t.type === "withdrawal")
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        const depositedToday = todayTxns
+            .filter(t => t.type === "deposit")
+            .reduce((sum, t) => sum + t.amount, 0);
+
 
         return res.status(200).json({
             message: "Dashboard data retrieved",
@@ -348,8 +372,14 @@ const getDashboard = async (req, res) => {
                 accountNumber: user.accountNumber,
                 savingsBalance: user.savingsBalance,
                 interestThisMonth: interestThisMonthTotal,
-                billsThisMonth: billsThisMonthTotal,  // now dynamic & 0 if none
-                recentTransactions: formattedTx
+                billsThisMonth: billsThisMonthTotal,
+                recentTransactions: formattedTx,
+                withdrawnToday,
+                transferredToday,
+                depositedToday,
+                dailyTransferLimit: parseInt(process.env.DAILY_TRANSFER_LIMIT) || 2_000_000,
+                dailyWithdrawLimit: parseInt(process.env.DAILY_WITHDRAW_LIMIT) || 1_000_000,
+                dailyDepositLimit: parseInt(process.env.DAILY_DEPOSIT_LIMIT) || 1_000_000,
             }
         });
 
@@ -360,12 +390,12 @@ const getDashboard = async (req, res) => {
 };
 
 const requestOTP = async (req, res) => {
-     await connectDB()
+    await connectDB()
     const { email } = req.body
     try {
         // save their otp and mail in the db
         // send them a mail with the otp
-       
+
 
         const isUser = await BankUserModel.findOne({ email })
         if (!isUser) {
@@ -429,7 +459,7 @@ const requestOTP = async (req, res) => {
 }
 
 const forgotPassword = async (req, res) => {
-     await connectDB()
+    await connectDB()
     const { email, otp, newPassword } = req.body
 
     try {
@@ -472,9 +502,9 @@ const forgotPassword = async (req, res) => {
 
 
 const changePassword = async (req, res) => {
-     await connectDB()
+    await connectDB()
     try {
-        
+
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
 
