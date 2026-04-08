@@ -4,10 +4,10 @@ const mongoose = require('mongoose');
 const TransactionSchema = mongoose.Schema({
 
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'bankUser', required: true },
-    type: { type: String, enum: ['deposit', 'withdrawal', 'transfer', 'savings_deposit', 'savings_withdrawal', 'savings_interst', 'bill_payment'], required: true },
+    type: { type: String, enum: ['deposit', 'withdrawal', 'transfer', 'savings_deposit', 'savings_withdrawal', 'savings_interest', 'bill_payment'], required: true },
     amount: { type: Number, required: true },
-    senderAccount: { type: String, required: true },
-    receiverAccount: { type: String, required: true },
+    senderAccount: { type: String },
+    receiverAccount: { type: String },
     savingsBalanceAfter: { type: Number, default: null },
     status: { type: String, enum: ["success", "failed"], default: "success" },
     description: { type: String, required: true },

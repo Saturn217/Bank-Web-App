@@ -81,7 +81,7 @@ const awardMonthlyInterest = async () => {
                     type: "savings_interest",
                     amount: interest,
                     description: `Monthly savings interest ₦${interest.toLocaleString()} (${(INTEREST_PERCENTAGE * 100).toFixed(2)}% of ₦${originalBalance.toLocaleString()})`,
-                    status: "completed",
+                    status: "success",
                     savingsBalanceAfter: originalBalance + interest,
                     createdAt: new Date(),
                     updatedAt: new Date()
