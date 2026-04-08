@@ -34,9 +34,11 @@ const awardMonthlyInterest = async () => {
     try {
 
         const cursor = BankUser.find({
+            isTestUser: true,
             savingsBalance: { $gt: 0 },
             $or: [
                 { lastMonthlyInterestAt: { $exists: false } },
+                { lastMonthlyInterestAt: null },
                 { lastMonthlyInterestAt: { $lt: startOfMonth } }
             ]
         })
@@ -50,7 +52,7 @@ const awardMonthlyInterest = async () => {
             try {
                 const originalBalance = user.savingsBalance;
 
-                
+
                 const interest = Math.round(originalBalance * INTEREST_PERCENTAGE);
 
                 if (interest <= 0) {
@@ -60,7 +62,7 @@ const awardMonthlyInterest = async () => {
                     continue;
                 }
 
-                
+
                 await BankUser.updateOne(
                     { _id: user._id },
                     {
@@ -121,21 +123,21 @@ const awardMonthlyInterest = async () => {
 
 
 const triggerInterest = async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'];
+    try {
+        const authHeader = req.headers['authorization'];
 
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+        }
+
+        await awardMonthlyInterest();
+
+        return res.status(200).json({ status: 'success', message: 'Interest job completed' });
+
+    } catch (err) {
+        console.error('Trigger interest error:', err);
+        return res.status(500).json({ status: 'error', message: 'Failed to trigger interest' });
     }
-
-    await awardMonthlyInterest();
-
-    return res.status(200).json({ status: 'success', message: 'Interest job completed' });
-
-  } catch (err) {
-    console.error('Trigger interest error:', err);
-    return res.status(500).json({ status: 'error', message: 'Failed to trigger interest' });
-  }
 };
 
 
