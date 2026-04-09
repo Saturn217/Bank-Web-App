@@ -527,6 +527,7 @@ const Transfer = async (req, res) => {
                 amount: NumericalAmount,
                 outgoingDescription: outgoingTx.description,
                 status: "success",
+                createdAt: outgoingTx.createdAt,
 
                 ...(note?.trim() && { note })
             }
