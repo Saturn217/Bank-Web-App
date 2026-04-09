@@ -17,7 +17,7 @@ const TransactionSchema = mongoose.Schema({
         enum: ['airtime', 'internet', 'electricity', 'water'],
         default: null
     },
-    billProvider: { type: String, default: null },     // e.g. "IBEDC", "MTN", "DStv"
+    billProvider: { type: String, default: null },     
     billReference: { type: String, default: null }
 
 

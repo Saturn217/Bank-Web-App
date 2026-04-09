@@ -7,7 +7,7 @@ const connectDB = require("../database/connectDB")
 
 
 const getUserTransactions = async (req, res) => {
-    await connectDb()
+    await connectDB()
     try {
         const userId = req.user._id;
         const userAccountNumber = req.user.accountNumber;
