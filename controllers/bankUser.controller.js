@@ -75,9 +75,9 @@ const createBankUser = async (req, res) => {
         const renderMail = await mailSender("welcomeMail.ejs", {
             fullName: newBankUser.fullName || newBankUser.fullName.split(' ')[0] || 'User',
             accountNumber: newBankUser.accountNumber,
-            dashboardUrl: 'https://yourapp.com/dashboard',                  
-            supportUrl: 'https://yourapp.com/support',                         
-            privacyUrl: 'https://yourapp.com/privacy',                          
+            dashboardUrl: 'https://yourapp.com/dashboard',
+            supportUrl: 'https://yourapp.com/support',
+            privacyUrl: 'https://yourapp.com/privacy',
 
             termsUrl: 'https://yourapp.com/terms'
         })
@@ -201,7 +201,7 @@ const getMe = async (req, res) => {
 
         const hasTransactionPin = !!user.transactionPin;
 
-    
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -211,7 +211,7 @@ const getMe = async (req, res) => {
         if (user.savingsBalance > 0) {
             interestStatus = "eligible";
 
-           
+
             const nextInterestDate = new Date(
                 today.getFullYear(),
                 today.getMonth() + 1,
@@ -315,14 +315,22 @@ const getDashboard = async (req, res) => {
         }
 
         const formattedTx = recentTransactions.map(tx => ({
+            _id: tx._id,                         
             date: tx.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            type: tx.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            createdAt: tx.createdAt,            
+            type: tx.type,                        
             description: tx.description,
             amount: tx.amount,
             isPositive: tx.amount > 0,
             formattedAmount: (tx.amount > 0 ? '+' : '') + '₦' + Math.abs(tx.amount).toLocaleString(),
             senderName: userMap[tx.senderAccount] || null,
             receiverName: userMap[tx.receiverAccount] || null,
+            senderAccount: tx.senderAccount || null,    
+            receiverAccount: tx.receiverAccount || null,  
+            billType: tx.billType || null,                
+            billProvider: tx.billProvider || null,       
+            billReference: tx.billReference || null,      
+            status: tx.status || null,                    
             note: tx.note || null,
         }));
 
