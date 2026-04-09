@@ -39,19 +39,39 @@ const payBill = async (req, res) => {
       });
     }
 
-   
+    const validProviders = {
+      airtime: ['MTN Nigeria', 'Airtel Nigeria', 'Glo Nigeria', '9mobile'],
+      internet: ['MTN Data', 'Airtel Data', 'Glo Data', '9mobile', 'Spectranet', 'Smile Telecom'],
+      electricity: ['EKEDC', 'IKEDC', 'AEDC', 'PHEDC', 'IBEDC', 'EEDC'],
+      water: ['Lagos Water Corp', 'Abuja Water Board', "Rivers Water Board", 'Oyo Water Corp']
+    };
+
+
+    const allowedProviders = validProviders[billType.toLowerCase()];
+    if (!allowedProviders.includes(provider)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid provider for ${billType}. Allowed: ${allowedProviders.join(', ')}`
+      });
+    }
+
+
+
     let referenceError = null;
     const ref = reference.toString().trim();
 
-    if (billType === 'airtime' || billType === 'internet') {
+   
+    const type = billType.toLowerCase();
+
+    if (type === 'airtime' || type === 'internet') {
       if (!/^\d{11}$/.test(ref)) {
-        referenceError = `${billType.charAt(0).toUpperCase() + billType.slice(1)} reference must be exactly 11 digits (e.g. 08031234567)`;
+        referenceError = `${type.charAt(0).toUpperCase() + type.slice(1)} reference must be exactly 11 digits (e.g. 08031234567)`;
       }
-    } else if (billType === 'electricity') {
+    } else if (type === 'electricity') {
       if (!/^\d{7}$/.test(ref)) {
         referenceError = "Electricity meter number must be exactly 7 digits";
       }
-    } else if (billType === 'water') {
+    } else if (type === 'water') {
       if (!/^\d{8,12}$/.test(ref)) {
         referenceError = "Water customer/meter number must be 8 to 12 digits";
       }
@@ -60,6 +80,8 @@ const payBill = async (req, res) => {
     if (referenceError) {
       return res.status(400).json({ status: 'error', message: referenceError });
     }
+
+
 
     const user = await BankUserModel.findById(req.user._id).session(session);
     if (!user) {
@@ -70,7 +92,7 @@ const payBill = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance in main account" });
     }
 
-  
+
     user.balance -= paymentAmount;
     await user.save({ session });
 
@@ -78,7 +100,7 @@ const payBill = async (req, res) => {
       user: user._id,
       accountNumber: user.accountNumber,
       type: "bill_payment",
-      amount: paymentAmount,
+      amount: -paymentAmount,
       balanceAfter: user.balance,
       savingsBalanceAfter: user.savingsBalance,
       senderAccount: user.accountNumber,
@@ -95,7 +117,7 @@ const payBill = async (req, res) => {
 
     await createNotification({
       userId: user._id,
-      type: 'bill_payment', 
+      type: 'bill_payment',
       title: 'Bill Payment Successful',
       message: `You have successfully paid ₦${paymentAmount.toLocaleString()} for your ${billType} bill.`,
       amount: paymentAmount,
