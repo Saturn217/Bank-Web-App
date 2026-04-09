@@ -91,8 +91,8 @@ const deposit = async (req, res) => {
             type: "deposit",
             amount: NumericalAmount,
             balanceAfter: depositUser.balance,
-            senderAccount: "Bank Deposit",
-            receiverAccount: depositUser.accountNumber,
+            // senderAccount: "Bank Deposit",
+            // receiverAccount: depositUser.accountNumber,
             description: `Deposit of ₦${NumericalAmount.toLocaleString()} to your account`,
             note,
             status: "success"
