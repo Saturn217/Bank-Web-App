@@ -43,16 +43,7 @@ const createBankUser = async (req, res) => {
         const saltround = await bcrypt.genSalt(10)
         const hashedPassword = await bcrypt.hash(password, saltround)
 
-
-
-
-
         const [newBankUser] = await BankUserModel.create([{ fullName, email, accountNumber, password: hashedPassword }], { session })
-
-
-
-
-
 
         const token = await jwt.sign({ id: newBankUser._id }, process.env.JWT_SECRET, { expiresIn: "5h" })
 
@@ -84,9 +75,9 @@ const createBankUser = async (req, res) => {
         const renderMail = await mailSender("welcomeMail.ejs", {
             fullName: newBankUser.fullName || newBankUser.fullName.split(' ')[0] || 'User',
             accountNumber: newBankUser.accountNumber,
-            dashboardUrl: 'https://yourapp.com/dashboard',                       // ← add this
-            supportUrl: 'https://yourapp.com/support',                           // ← add if used
-            privacyUrl: 'https://yourapp.com/privacy',                           // ← add if used
+            dashboardUrl: 'https://yourapp.com/dashboard',                  
+            supportUrl: 'https://yourapp.com/support',                         
+            privacyUrl: 'https://yourapp.com/privacy',                          
 
             termsUrl: 'https://yourapp.com/terms'
         })
@@ -210,18 +201,17 @@ const getMe = async (req, res) => {
 
         const hasTransactionPin = !!user.transactionPin;
 
-        // Normalize today's date to midnight (LOCAL time)
+    
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         let interestStatus = "not_eligible";
         let nextInterestPayment = null;
 
-        // Only calculate projection if user has savings
         if (user.savingsBalance > 0) {
             interestStatus = "eligible";
 
-            // First day of next month (always future payout date)
+           
             const nextInterestDate = new Date(
                 today.getFullYear(),
                 today.getMonth() + 1,
@@ -289,7 +279,6 @@ const getDashboard = async (req, res) => {
 
         const interestThisMonthTotal = interestThisMonth[0]?.total || 0;
 
-        // 3. Calculate bills paid this month (dynamic - no hard-coding)
         const billsThisMonth = await TransactionModel.aggregate([
             {
                 $match: {
@@ -311,7 +300,6 @@ const getDashboard = async (req, res) => {
             .select('createdAt type amount description status note senderAccount receiverAccount billType billProvider billReference')
             .lean();
 
-        // Enrich transfers with names via account number lookup
         const accountNumbers = new Set();
         recentTransactions.filter(tx => tx.type === "transfer").forEach(tx => {
             if (tx.senderAccount) accountNumbers.add(tx.senderAccount);
@@ -338,7 +326,6 @@ const getDashboard = async (req, res) => {
             note: tx.note || null,
         }));
 
-        // In your dashboard controller, after fetching today's transactions:
 
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);

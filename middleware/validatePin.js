@@ -47,7 +47,7 @@ const validatePin = async (req, res, next) => {
       user.failedPinAttempts += 1;
       const attemptsLeft = MAX_ATTEMPTS - user.failedPinAttempts;
 
-      //  Lock if max attempts reached
+     
       if (user.failedPinAttempts >= MAX_ATTEMPTS) {
         user.pinLockedUntil = new Date(Date.now() + LOCK_DURATION);
         user.failedPinAttempts = 0; //  reset so fresh attempts after lock expires

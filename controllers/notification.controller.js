@@ -18,7 +18,7 @@ const getUnreadCount = async (req, res) => {
 };
 
 
-// controllers/notification.controller.js
+
 const getNotifications = async (req, res) => {
     try {
       

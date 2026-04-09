@@ -3,9 +3,11 @@ const BankUserModel = require('../models/bankUser.model');
 const TransactionModel = require('../models/transaction.model');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const connectDB = require("../database/connectDB")
 
 
 const getUserTransactions = async (req, res) => {
+    await connectDb()
     try {
         const userId = req.user._id;
         const userAccountNumber = req.user.accountNumber;
@@ -33,7 +35,7 @@ const getUserTransactions = async (req, res) => {
             $or: [
 
                 { user: userId },
-                // Incoming transfers
+            
                 {
                     type: "transfer",
                     receiverAccount: userAccountNumber

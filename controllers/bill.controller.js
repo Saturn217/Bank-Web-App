@@ -18,7 +18,6 @@ const payBill = async (req, res) => {
   try {
     const { billType, provider, reference, amount, note = "" } = req.body;
 
-    // Required fields
     if (!billType || !provider || !reference || !amount) {
       return res.status(400).json({
         status: 'error',
@@ -31,7 +30,7 @@ const payBill = async (req, res) => {
       return res.status(400).json({ message: "Invalid bill amount" });
     }
 
-    // Validate billType (only 4 allowed)
+
     const validBillTypes = ['airtime', 'internet', 'electricity', 'water'];
     if (!validBillTypes.includes(billType.toLowerCase())) {
       return res.status(400).json({
@@ -40,7 +39,7 @@ const payBill = async (req, res) => {
       });
     }
 
-    // Reference validation based on bill type
+   
     let referenceError = null;
     const ref = reference.toString().trim();
 
@@ -62,7 +61,6 @@ const payBill = async (req, res) => {
       return res.status(400).json({ status: 'error', message: referenceError });
     }
 
-    // Get user
     const user = await BankUserModel.findById(req.user._id).session(session);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -72,11 +70,10 @@ const payBill = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance in main account" });
     }
 
-    // Deduct from main balance
+  
     user.balance -= paymentAmount;
     await user.save({ session });
 
-    // Create transaction
     const [newTx] = await TransactionModel.create([{
       user: user._id,
       accountNumber: user.accountNumber,

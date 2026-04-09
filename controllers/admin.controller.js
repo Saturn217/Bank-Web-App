@@ -4,7 +4,7 @@ const TransactionModel = require('../models/transaction.model');
 
 const getAdminOverview = async (req, res) => {
   try {
-    // 1. Total users (with breakdowns)
+   
     const totalUsers = await BankUserModel.countDocuments();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -17,7 +17,7 @@ const getAdminOverview = async (req, res) => {
       createdAt: { $gte: new Date(today.setDate(today.getDate() - 7)) }
     });
 
-    // 2. Total balances in system
+  
     const balances = await BankUserModel.aggregate([
       {
         $group: {
@@ -34,7 +34,7 @@ const getAdminOverview = async (req, res) => {
     const totalInterestPaid = balances[0]?.totalInterestPaid || 0;
     const totalInSystem = totalMain + totalSavings;
 
-    // 3. Recent high-value transfers (last 24h, > ₦500,000)
+  
     const highValueTransfers = await TransactionModel.find({
       type: 'transfer',
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
@@ -45,7 +45,6 @@ const getAdminOverview = async (req, res) => {
       .select('createdAt amount senderFullName senderAccount receiverFullName receiverAccount description')
       .lean();
 
-    // 4. Accounts with suspicious activity (e.g. 3+ failed PIN attempts in 24h)
     const suspiciousAccounts = await BankUserModel.find({
       failedPinAttempts: { $gte: 3 },
       $or: [
@@ -56,7 +55,7 @@ const getAdminOverview = async (req, res) => {
       .select('fullName email accountNumber failedPinAttempts pinLockedUntil')
       .limit(10);
 
-    // 5. Pending/failed transactions (last 24h)
+   
     const failedTransactions = await TransactionModel.countDocuments({
       status: 'failed',
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }

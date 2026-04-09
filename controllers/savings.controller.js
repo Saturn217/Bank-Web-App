@@ -5,10 +5,12 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const mongoose = require("mongoose")
 const createNotification = require('../utils/createNotification');
+const connectDB = require("../database/connectDB")
 
 
 
 const depositToSavings = async (req, res) => {
+    await connectDB()
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -97,6 +99,7 @@ const depositToSavings = async (req, res) => {
 };
 
 const withdrawFromSavings = async (req, res) => {
+    await connectDB()
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -187,6 +190,7 @@ const withdrawFromSavings = async (req, res) => {
 
 
 const getSavingsOverview = async (req, res) => {
+    await connectDB()
     try {
         const user = await BankUserModel.findById(req.user._id).select(
             'savingsBalance totalInterestEarned lastMonthlyInterestAt'
@@ -197,7 +201,7 @@ const getSavingsOverview = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Next interest date
+       
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -207,7 +211,7 @@ const getSavingsOverview = async (req, res) => {
         const diffMs = nextInterestDate - today;
         const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-        // Last 5 savings-related transactions
+   
         const savingsHistory = await TransactionModel.find({
             user: req.user._id,
             type: { $in: ['savings_deposit', 'savings_withdrawal', 'savings_interest'] }
@@ -217,7 +221,7 @@ const getSavingsOverview = async (req, res) => {
             .select('createdAt type description amount status note')
             .lean();
 
-        // Format history
+       
         const formattedHistory = savingsHistory.map(tx => ({
             date: tx.createdAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
             type: tx.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -229,8 +233,6 @@ const getSavingsOverview = async (req, res) => {
         }));
 
         const total = await TransactionModel.countDocuments(savingsHistory)
-
-
 
         return res.status(200).json({
             message: "Savings overview retrieved",

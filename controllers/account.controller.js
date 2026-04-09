@@ -132,10 +132,6 @@ const deposit = async (req, res) => {
             else console.log("Deposit email sent:", info.response);
         });
 
-
-
-
-
         return res.status(200).json({
             message: "Deposit successful",
             data: {
@@ -147,7 +143,6 @@ const deposit = async (req, res) => {
                     balanceAfter: newTransaction.balanceAfter,
                     description: newTransaction.description,
                     createdAt: newTransaction.createdAt,
-                    // Only show note if it has content
                     ...(newTransaction.note?.trim() && { note: newTransaction.note })
                 },
 
@@ -582,7 +577,7 @@ const verifyAccountNumber = async (req, res) => {
     try {
         const { accountNumber } = req.query;
 
-        if (!accountNumber || accountNumber.length !== 10) { // assuming 10-digit account numbers
+        if (!accountNumber || accountNumber.length !== 10) {
             return res.status(400).json({ message: "Invalid account number format" });
         }
 
@@ -648,7 +643,4 @@ const setTransactionPin = async (req, res) => {
     }
 };
 
-
-
-// Route: GET /api/v1/user/verify-account?accountNumber=1234567890 (protected or public?)
 module.exports = { deposit, withdrawal, Transfer, verifyAccountNumber, setTransactionPin }
