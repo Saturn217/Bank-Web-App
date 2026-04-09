@@ -53,8 +53,8 @@ const createBankUser = async (req, res) => {
             type: "deposit",
             amount: 100000,
             balanceAfter: 100000,
-            // senderAccount: "BANK_WELCOME",
-            // receiverAccount: newBankUser.accountNumber,
+            senderAccount: "BANK_WELCOME",
+            receiverAccount: newBankUser.accountNumber,
             description: "Welcome bonus of ₦100,000 on account opening",
             status: "success",
 
